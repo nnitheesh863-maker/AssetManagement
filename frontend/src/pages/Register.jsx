@@ -86,7 +86,7 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
   const passwordStrength = checkPasswordStrength(password);
 
   return (
-    <div className="auth-container">
+    <div className="auth-container register-container">
       {/* Brand logo */}
       <div className="brand-logo">
         <svg viewBox="0 0 24 24" className="brand-icon" fill="none" stroke="currentColor" strokeWidth="2">

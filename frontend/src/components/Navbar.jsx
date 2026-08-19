@@ -1,32 +1,96 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-function Navbar({ currentUser, onLogout, onNavigate }) {
+function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchChange, searchVal }) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   const getAvatarInitials = () => {
     if (!currentUser) return '';
     return currentUser.loginId.substring(0, 2).toUpperCase();
   };
 
+  const handleDropdownItemClick = (view) => {
+    setIsDropdownOpen(false);
+    onNavigate(view);
+  };
+
   return (
     <nav className="navbar glass">
-      <div className="navbar-left" onClick={() => onNavigate('dashboard')}>
-        <svg viewBox="0 0 24 24" className="brand-icon" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M7 3h10a1 1 0 0 1 1 1v8H6V4a1 1 0 0 1 1-1z" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M5 12h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M6 16v5M18 16v5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span className="brand-text">Shiv Furniture</span>
+      <div className="navbar-left">
+        {currentUser && (
+          <button className="sidebar-toggle-btn" onClick={onToggleSidebar} title="Toggle Master Menu">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" style={{ width: '24px', height: '24px' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+        <div className="brand-logo-centered" onClick={() => onNavigate('dashboard')}>
+          <span className="brand-text">Shiv Furniture</span>
+        </div>
       </div>
 
       {currentUser && (
-        <div className="navbar-right">
-          <div className="nav-user-info" onClick={() => onNavigate('profile')}>
-            <div className="avatar nav-avatar">{getAvatarInitials()}</div>
-            <div className="nav-user-text">
-              <span className="nav-username">{currentUser.loginId}</span>
-              <span className="nav-role">{currentUser.role === 'System Administrator' ? 'Admin' : 'User'}</span>
-            </div>
+        <div className="navbar-center-search">
+          <div className="search-wrapper">
+            <svg className="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              className="global-search-input"
+              placeholder="Search orders, products, items..."
+              value={searchVal || ''}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
           </div>
-          <button className="btn btn-logout-nav" onClick={onLogout}>Log Out</button>
+        </div>
+      )}
+
+      {currentUser && (
+        <div className="navbar-right-actions">
+          {/* Notifications bell */}
+          <div className="nav-action-icon-wrapper" onClick={() => onNavigate('notifications')} title="Notifications">
+            <svg className="nav-action-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span className="notification-badge-dot"></span>
+          </div>
+
+          {/* User avatar menu */}
+          <div className="nav-user-dropdown-container">
+            <div className="nav-user-info-avatar" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+              <div className="avatar nav-avatar-circle">{getAvatarInitials()}</div>
+              <div className="nav-user-meta">
+                <span className="nav-username-text">{currentUser.loginId}</span>
+                <span className="nav-role-text">{currentUser.role === 'System Administrator' ? 'Admin' : 'User'}</span>
+              </div>
+              <svg className={`dropdown-caret-svg ${isDropdownOpen ? 'open' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+
+            {isDropdownOpen && (
+              <div className="user-dropdown-menu glass">
+                <div className="dropdown-user-header">
+                  <span className="dropdown-username">{currentUser.loginId}</span>
+                  <span className="dropdown-role">{currentUser.role}</span>
+                </div>
+                <div className="dropdown-divider"></div>
+                <button className="dropdown-item" onClick={() => handleDropdownItemClick('profile')}>
+                  Profile
+                </button>
+                <button className="dropdown-item" onClick={() => handleDropdownItemClick('settings')}>
+                  Account Settings
+                </button>
+                <button className="dropdown-item" onClick={() => handleDropdownItemClick('notifications')}>
+                  Notifications
+                </button>
+                <div className="dropdown-divider"></div>
+                <button className="dropdown-item logout-item" onClick={() => { setIsDropdownOpen(false); onLogout(); }}>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </nav>
