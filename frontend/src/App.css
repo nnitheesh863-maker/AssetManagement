@@ -594,17 +594,17 @@ body {
 
 /* High Legibility Sizing & Spacing for Authenticated Views */
 .content-container h2 {
-  font-size: 32px !important;
-  font-weight: 700;
+  font-size: 52px !important; /* Increased above 50px */
+  font-weight: 800; /* Extra bold */
   margin-top: 0;
   margin-bottom: 16px;
   color: var(--text-primary);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.8px;
 }
 
 .content-container p,
 .content-container .sys-desc {
-  font-size: 18px !important;
+  font-size: 22px !important; /* Increased to 22px */
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -885,8 +885,9 @@ body {
 
 .menu-title {
   margin: 0 0 14px 16px;
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-size: 13px; /* Scaled up */
+  color: var(--text-primary); /* High contrast */
+  font-weight: 700; /* Bold */
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -894,7 +895,7 @@ body {
 .sidebar-menu {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px; /* Increased item gap */
   width: 100%;
 }
 
@@ -903,13 +904,13 @@ body {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 14px 18px; /* Bigger padding */
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--text-primary); /* High contrast text */
+  font-size: 16px; /* Scaled up label size */
+  font-weight: 600; /* Bolder text */
   cursor: pointer;
   text-align: left;
   transition: all 0.2s ease;
@@ -918,24 +919,25 @@ body {
 
 .sidebar.collapsed .sidebar-item {
   justify-content: center;
-  padding: 12px;
+  padding: 14px;
 }
 
 .sidebar-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+  background: rgba(207, 142, 109, 0.08); /* Cinnamon hover tint */
+  color: var(--primary);
 }
 
 .sidebar-item.active {
-  background: var(--primary-glow);
-  color: #fff;
-  border-left: 3px solid var(--primary);
+  background: var(--primary) !important; /* Solid cinnamon background */
+  color: #ffffff !important; /* High contrast active text */
+  border-left: 4px solid var(--primary-hover);
   border-radius: 4px 8px 8px 4px;
+  box-shadow: 0 4px 12px rgba(207, 142, 109, 0.2);
 }
 
 .sidebar-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px; /* Bigger icon */
+  height: 22px;
   flex-shrink: 0;
 }
 
@@ -997,8 +999,8 @@ body {
 }
 
 .erp-row-label {
-  width: 40px;
-  font-size: 14px;
+  width: 50px;
+  font-size: 18px; /* Increased to 18px */
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -1046,20 +1048,20 @@ body {
 }
 
 .pill-count {
-  font-size: 16px; /* Bigger count */
+  font-size: 22px; /* Increased to 22px */
   font-weight: 700;
   color: #3E2F27; /* Deep Espresso */
 }
 
 .pill-label {
-  font-size: 14px; /* Bigger label */
+  font-size: 18px; /* Increased to 18px */
   font-weight: 600;
   color: #7E6A5F; /* Medium Cocoa */
 }
 
 .pill-icon {
-  width: 18px;
-  height: 18px;
+  width: 24px; /* Increased to 24px */
+  height: 24px;
   color: var(--primary);
   flex-shrink: 0;
   transition: color 0.2s;
@@ -1104,7 +1106,7 @@ body {
 }
 
 .table-filter-indicator {
-  font-size: 13px;
+  font-size: 20px; /* Increased to 20px */
   color: var(--text-secondary);
   margin-bottom: 12px;
 }
@@ -1118,20 +1120,20 @@ body {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 14px;
+  font-size: 20px; /* Increased to 20px */
 }
 
 .erp-dashboard-table th,
 .erp-dashboard-table td {
-  padding: 12px 16px;
+  padding: 16px 20px; /* More padding */
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .erp-dashboard-table th {
   color: var(--text-secondary);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: 16px; /* Increased to 16px */
   letter-spacing: 0.5px;
   background-color: rgba(0, 0, 0, 0.15);
 }
@@ -1142,13 +1144,14 @@ body {
 
 .order-id-cell {
   font-family: monospace;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary);
+  font-size: 20px; /* Increased to 20px */
 }
 
 .btn-small-table {
-  padding: 4px 8px !important;
-  font-size: 12px !important;
+  padding: 8px 14px !important; /* Larger padding */
+  font-size: 16px !important; /* Increased to 16px */
   margin-top: 0 !important;
   width: auto !important;
 }
@@ -1156,9 +1159,9 @@ body {
 .badge.category-badge {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 16px; /* Increased to 16px */
   color: var(--text-secondary);
 }
 
