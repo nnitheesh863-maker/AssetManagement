@@ -62,10 +62,18 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
       return;
     }
 
-    // 5. Password strength
+    // 5. Password strength and uniqueness
     const strength = checkPasswordStrength(password);
     if (!strength.isValid) {
-      setErrorMessage('Password does not satisfy complexity requirements.');
+      setErrorMessage('Password must contain a lowercase letter, an uppercase letter, a special character, and be more than 8 characters.');
+      return;
+    }
+
+    const isPasswordTaken = users.some(
+      (u) => u.password === password
+    );
+    if (isPasswordTaken) {
+      setErrorMessage('Password must be unique.');
       return;
     }
 
@@ -141,7 +149,7 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
             {password.length > 0 && (
               <div className="password-checklist">
                 <div className={`check-item ${passwordStrength.hasLength ? 'valid' : 'invalid'}`}>
-                  {passwordStrength.hasLength ? '✓' : '✗'} Minimum 8 characters
+                  {passwordStrength.hasLength ? '✓' : '✗'} More than 8 characters
                 </div>
                 <div className={`check-item ${passwordStrength.hasSmall ? 'valid' : 'invalid'}`}>
                   {passwordStrength.hasSmall ? '✓' : '✗'} Small case letter (a-z)

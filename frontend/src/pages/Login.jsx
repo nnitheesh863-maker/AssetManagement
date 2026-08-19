@@ -8,12 +8,12 @@ const PRESEEDED_ADMIN = {
 function Login({ users, onLoginSuccess, onNavigateToRegister }) {
   // loginType: 'user' | 'admin' | 'forgot'
   const [loginType, setLoginType] = useState('user');
-  
+
   // Fields
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [forgotLoginId, setForgotLoginId] = useState('');
-  
+
   // Feedbacks
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');

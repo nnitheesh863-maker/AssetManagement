@@ -64,8 +64,14 @@ function App() {
     setCurrentView(view);
   };
 
+  const getRootBgClass = () => {
+    if (currentUser) return "authenticated-root";
+    if (currentView === 'register') return "auth-bg register-page-bg";
+    return "auth-bg";
+  };
+
   return (
-    <div className={currentUser ? "authenticated-root" : "auth-bg"}>
+    <div className={getRootBgClass()}>
       <div className="mesh-gradient"></div>
 
       {/* RENDER NAVBAR FOR AUTHENTICATED USERS */}

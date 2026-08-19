@@ -168,10 +168,6 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
 
   return (
     <div className="page-content animated fadeIn">
-      <div className="dashboard-header-block">
-        <h2>Dashboard</h2>
-        <p className="sys-desc">Monitor sales, purchasing and manufacturing activity</p>
-      </div>
 
       {/* 1. SALES ORDERS PANEL */}
       <div className="card glass erp-dashboard-panel">
