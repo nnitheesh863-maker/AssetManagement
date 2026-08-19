@@ -15,7 +15,7 @@ const PRODUCT_PRICES = {
 // Users database
 const SALESPERSON_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
 
-function SalesOrders() {
+function SalesOrders({ onNavigate }) {
   const [salesOrders, setSalesOrders] = useState([]);
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
@@ -371,13 +371,23 @@ function SalesOrders() {
             <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
               {selectedOrder ? `Edit Sales Order ${selectedOrder.id}` : 'New Sales Order'}
             </h3>
-            <span className={`status-pill ${
-              orderStatus === 'Delivered' ? 'status-active' :
-              orderStatus === 'Draft' ? 'status-pending-badge' :
-              orderStatus === 'Cancelled' ? 'status-warning-badge' : 'status-active'
-            }`}>
-              Status: {orderStatus}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => onNavigate('audit-logs', 'Sales')}
+                style={{ marginTop: 0, padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                📋 Logs
+              </button>
+              <span className={`status-pill ${
+                orderStatus === 'Delivered' ? 'status-active' :
+                orderStatus === 'Draft' ? 'status-pending-badge' :
+                orderStatus === 'Cancelled' ? 'status-warning-badge' : 'status-active'
+              }`}>
+                Status: {orderStatus}
+              </span>
+            </div>
           </div>
 
           <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

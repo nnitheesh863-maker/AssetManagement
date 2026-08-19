@@ -16,7 +16,7 @@ const RESPONSIBLE_LIST = ['Meera Sen', 'Amit Sharma', 'Ravi Verma', 'Neha Verma'
 // Vendors list
 const VENDOR_LIST = ['Raw Teak Supplier Co.', 'Hardware Supplies Depot', 'Global Glass & Lighting Inc.'];
 
-function PurchaseOrders() {
+function PurchaseOrders({ onNavigate }) {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
@@ -370,7 +370,15 @@ function PurchaseOrders() {
             <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
               {selectedOrder ? `Edit Purchase Order ${selectedOrder.id}` : 'New Purchase Order'}
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => onNavigate('audit-logs', 'Purchase')}
+                style={{ marginTop: 0, padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                📋 Logs
+              </button>
               <span className={`status-pill ${
                 orderStatus === 'Fully Received' ? 'status-active' :
                 orderStatus === 'Draft' ? 'status-pending-badge' :

@@ -170,7 +170,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
     <div className="page-content animated fadeIn">
 
       {/* 1. SALES ORDERS PANEL */}
-      <div className="card glass erp-dashboard-panel">
+      <div className="card glass erp-dashboard-panel hub-red">
         <div className="erp-panel-header">
           <div style={{ width: '80px' }}></div>
           <h3 className="erp-panel-title">Sale Orders</h3>
@@ -274,7 +274,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
       </div>
 
       {/* 2. PURCHASE ORDERS PANEL */}
-      <div className="card glass erp-dashboard-panel">
+      <div className="card glass erp-dashboard-panel hub-indigo">
         <div className="erp-panel-header">
           <div style={{ width: '80px' }}></div>
           <h3 className="erp-panel-title">Purchase Orders</h3>
@@ -378,7 +378,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
       </div>
 
       {/* 3. MANUFACTURING ORDERS PANEL */}
-      <div className="card glass erp-dashboard-panel">
+      <div className="card glass erp-dashboard-panel hub-mint">
         <div className="erp-panel-header">
           <div style={{ width: '80px' }}></div>
           <h3 className="erp-panel-title">Manufacturing Orders</h3>
@@ -482,7 +482,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
       </div>
 
       {/* 4. RECENT ACTIVITY LOGS PANEL */}
-      <div className="card glass erp-dashboard-panel">
+      <div className="card glass erp-dashboard-panel hub-blue">
         <h3 className="erp-panel-title" style={{ textAlign: 'left', marginBottom: '18px' }}>Recent Activity</h3>
         <div className="activity-list-container">
           {activities.map((act) => (

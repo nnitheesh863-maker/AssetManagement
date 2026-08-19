@@ -23,9 +23,7 @@ function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchCh
             </svg>
           </button>
         )}
-        <div className="brand-logo-centered" onClick={() => onNavigate('dashboard')}>
-          <span className="brand-text">Shiv Furniture</span>
-        </div>
+
       </div>
 
       {currentUser && (

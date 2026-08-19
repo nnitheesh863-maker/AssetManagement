@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-function AuditLogs() {
+function AuditLogs({ defaultModuleFilter = 'All Modules' }) {
   // Exact 9 rows from the Excalidraw mockup
   const allLogs = [
     { datetime: '26 May 2026, 11:42 AM', user: 'Amit Sharma', module: 'Sales', type: 'Product', id: 'PROD-0034', action: 'Updated', field: 'Sales Price', oldVal: '₹120.00', newVal: '₹135.00' },
@@ -16,14 +16,23 @@ function AuditLogs() {
 
   // States for filter selectors
   const [selectedUser, setSelectedUser] = useState('All Users');
-  const [selectedModule, setSelectedModule] = useState('All Modules');
+  const [selectedModule, setSelectedModule] = useState(defaultModuleFilter);
   const [selectedAction, setSelectedAction] = useState('All Actions');
-  const [dateRange, setDateRange] = useState('01 May 2026 - 26 May 2026');
+  const [startDate, setStartDate] = useState('2026-05-01');
+  const [endDate, setEndDate] = useState('2026-05-31');
 
   // Filter application states
   const [appliedUser, setAppliedUser] = useState('All Users');
-  const [appliedModule, setAppliedModule] = useState('All Modules');
+  const [appliedModule, setAppliedModule] = useState(defaultModuleFilter);
   const [appliedAction, setAppliedAction] = useState('All Actions');
+  const [appliedStartDate, setAppliedStartDate] = useState('2026-05-01');
+  const [appliedEndDate, setAppliedEndDate] = useState('2026-05-31');
+
+  // Sync prop changes
+  useEffect(() => {
+    setSelectedModule(defaultModuleFilter);
+    setAppliedModule(defaultModuleFilter);
+  }, [defaultModuleFilter]);
 
   // Pagination page state
   const [activePage, setActivePage] = useState(1);
@@ -33,6 +42,8 @@ function AuditLogs() {
     setAppliedUser(selectedUser);
     setAppliedModule(selectedModule);
     setAppliedAction(selectedAction);
+    setAppliedStartDate(startDate);
+    setAppliedEndDate(endDate);
     setActivePage(1);
   };
 
@@ -41,11 +52,66 @@ function AuditLogs() {
     setSelectedUser('All Users');
     setSelectedModule('All Modules');
     setSelectedAction('All Actions');
+    setStartDate('2026-05-01');
+    setEndDate('2026-05-31');
     setAppliedUser('All Users');
     setAppliedModule('All Modules');
     setAppliedAction('All Actions');
-    setDateRange('01 May 2026 - 26 May 2026');
+    setAppliedStartDate('2026-05-01');
+    setAppliedEndDate('2026-05-31');
     setActivePage(1);
+  };
+
+  // Helper to parse date string e.g. "26 May 2026, 11:42 AM"
+  const parseLogDate = (dateStr) => {
+    try {
+      const cleanStr = dateStr.split(',')[0].trim();
+      const [day, monthName, year] = cleanStr.split(' ');
+      const months = {
+        'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+        'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11,
+        'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
+        'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11
+      };
+      const month = months[monthName] !== undefined ? months[monthName] : 0;
+      return new Date(parseInt(year), month, parseInt(day));
+    } catch (e) {
+      return new Date();
+    }
+  };
+
+  // Helper to parse input date values safely
+  const parseInputDate = (dateStr) => {
+    if (!dateStr) return null;
+    
+    // 1. Try manual parts split first to guarantee local timezone Date!
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+      let year, month, day;
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        year = parseInt(parts[0]);
+        month = parseInt(parts[1]) - 1;
+        day = parseInt(parts[2]);
+      } else if (parts[2].length === 4) {
+        // DD-MM-YYYY
+        year = parseInt(parts[2]);
+        month = parseInt(parts[1]) - 1;
+        day = parseInt(parts[0]);
+      }
+      if (year && !isNaN(month) && day) {
+        const d = new Date(year, month, day);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+    
+    // 2. Fallback to standard constructor
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      // Force it to local timezone to match logDate
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+    return null;
   };
 
   // Filtered log computations
@@ -53,7 +119,20 @@ function AuditLogs() {
     const matchesUser = appliedUser === 'All Users' || log.user === appliedUser;
     const matchesModule = appliedModule === 'All Modules' || log.module === appliedModule;
     const matchesAction = appliedAction === 'All Actions' || log.action === appliedAction;
-    return matchesUser && matchesModule && matchesAction;
+    
+    // Date Range filtering
+    const logDate = parseLogDate(log.datetime);
+    const startLimit = parseInputDate(appliedStartDate);
+    const endLimit = parseInputDate(appliedEndDate);
+    
+    let matchesDate = true;
+    if (startLimit && endLimit) {
+      startLimit.setHours(0, 0, 0, 0);
+      endLimit.setHours(23, 59, 59, 999);
+      matchesDate = logDate >= startLimit && logDate <= endLimit;
+    }
+
+    return matchesUser && matchesModule && matchesAction && matchesDate;
   });
 
   return (
@@ -111,16 +190,31 @@ function AuditLogs() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end', flex: '1' }}>
-            {/* Date Range Selector */}
+            {/* Start Date Selector */}
             <div className="filter-input-wrapper">
-              <label className="filter-label">Date Range</label>
+              <label className="filter-label">Start Date</label>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input
-                  type="text"
+                  type="date"
                   className="filter-control-input"
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  style={{ paddingLeft: '32px', width: '220px' }}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  style={{ paddingLeft: '32px', width: '160px' }}
+                />
+                <span style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)' }}>📅</span>
+              </div>
+            </div>
+
+            {/* End Date Selector */}
+            <div className="filter-input-wrapper">
+              <label className="filter-label">End Date</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="date"
+                  className="filter-control-input"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  style={{ paddingLeft: '32px', width: '160px' }}
                 />
                 <span style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)' }}>📅</span>
               </div>

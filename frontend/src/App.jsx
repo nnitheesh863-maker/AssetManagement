@@ -18,7 +18,7 @@ import './App.css';
 function App() {
   // Navigation / Views: 'login' | 'register' | 'dashboard' | 'profile' | 'sales-orders' | 'purchase-orders' | 'manufacturing-orders' | 'bom' | 'products' | 'audit-logs' | 'settings' | 'notifications'
   const [currentView, setCurrentView] = useState('login');
-  
+
   // Collapse state for master menu sidebar
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -51,7 +51,7 @@ function App() {
     const updatedUsers = [...users, newUser];
     setUsers(updatedUsers);
     localStorage.setItem('assetflow_users', JSON.stringify(updatedUsers));
-    
+
     // Switch to login page
     setCurrentView('login');
   };
@@ -60,8 +60,13 @@ function App() {
     setCurrentUser(null);
   };
 
-  const handleNavigation = (view) => {
+  const [auditLogModuleFilter, setAuditLogModuleFilter] = useState('All Modules');
+
+  const handleNavigation = (view, filter = 'All Modules') => {
     setCurrentView(view);
+    if (view === 'audit-logs') {
+      setAuditLogModuleFilter(filter);
+    }
   };
 
   const getRootBgClass = () => {
@@ -76,10 +81,10 @@ function App() {
 
       {/* RENDER NAVBAR FOR AUTHENTICATED USERS */}
       {currentUser && (
-        <Navbar 
-          currentUser={currentUser} 
-          onLogout={handleLogout} 
-          onNavigate={handleNavigation} 
+        <Navbar
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onNavigate={handleNavigation}
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onSearchChange={setSearchVal}
           searchVal={searchVal}
@@ -90,9 +95,9 @@ function App() {
       <div className={`app-main-layout ${currentUser ? 'authenticated' : 'unauthenticated'}`}>
         {/* RENDER SIDEBAR FOR AUTHENTICATED USERS */}
         {currentUser && (
-          <Sidebar 
-            currentView={currentView} 
-            onNavigate={handleNavigation} 
+          <Sidebar
+            currentView={currentView}
+            onNavigate={handleNavigation}
             isCollapsed={isSidebarCollapsed}
           />
         )}
@@ -103,17 +108,17 @@ function App() {
             /* UNAUTHENTICATED FLOW */
             <>
               {currentView === 'login' && (
-                <Login 
-                  users={users} 
-                  onLoginSuccess={handleLoginSuccess} 
-                  onNavigateToRegister={() => setCurrentView('register')} 
+                <Login
+                  users={users}
+                  onLoginSuccess={handleLoginSuccess}
+                  onNavigateToRegister={() => setCurrentView('register')}
                 />
               )}
               {currentView === 'register' && (
-                <Register 
-                  users={users} 
-                  onRegisterSuccess={handleRegisterSuccess} 
-                  onNavigateToLogin={() => setCurrentView('login')} 
+                <Register
+                  users={users}
+                  onRegisterSuccess={handleRegisterSuccess}
+                  onNavigateToLogin={() => setCurrentView('login')}
                 />
               )}
             </>
@@ -121,18 +126,18 @@ function App() {
             /* AUTHENTICATED FLOW */
             <>
               {currentView === 'dashboard' && (
-                <Dashboard 
-                  currentUser={currentUser} 
-                  onNavigate={handleNavigation} 
-                  searchVal={searchVal} 
+                <Dashboard
+                  currentUser={currentUser}
+                  onNavigate={handleNavigation}
+                  searchVal={searchVal}
                 />
               )}
-              {currentView === 'sales-orders' && <SalesOrders />}
-              {currentView === 'purchase-orders' && <PurchaseOrders />}
+              {currentView === 'sales-orders' && <SalesOrders onNavigate={handleNavigation} />}
+              {currentView === 'purchase-orders' && <PurchaseOrders onNavigate={handleNavigation} />}
               {currentView === 'manufacturing-orders' && <ManufacturingOrders />}
               {currentView === 'bom' && <BOM />}
               {currentView === 'products' && <Products />}
-              {currentView === 'audit-logs' && <AuditLogs />}
+              {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} />}
               {currentView === 'profile' && <Profile currentUser={currentUser} />}
               {currentView === 'settings' && <Settings />}
               {currentView === 'notifications' && <Notifications />}

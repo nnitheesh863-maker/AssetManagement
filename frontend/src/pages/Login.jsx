@@ -131,7 +131,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
             </div>
 
             {errorMessage && <div className="feedback error">{errorMessage}</div>}
-            {successMessage && <div className="feedback success">{successMessage}</div>}
+            {successMessage && (
+              <div className="feedback success" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3" style={{ width: '18px', height: '18px', flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{successMessage}</span>
+              </div>
+            )}
 
             <button type="submit" className="btn btn-primary">SIGN IN</button>
           </form>
@@ -182,7 +189,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
             </div>
 
             {errorMessage && <div className="feedback error">{errorMessage}</div>}
-            {successMessage && <div className="feedback success">{successMessage}</div>}
+            {successMessage && (
+              <div className="feedback success" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3" style={{ width: '18px', height: '18px', flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{successMessage}</span>
+              </div>
+            )}
 
             <button type="submit" className="btn btn-admin">SIGN IN</button>
           </form>
@@ -222,7 +236,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
             </div>
 
             {resetError && <div className="feedback error">{resetError}</div>}
-            {resetSuccess && <div className="feedback success">{resetSuccess}</div>}
+            {resetSuccess && (
+              <div className="feedback success" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3" style={{ width: '18px', height: '18px', flexShrink: 0 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{resetSuccess}</span>
+              </div>
+            )}
 
             <button type="submit" className="btn btn-primary">RESET PASSWORD</button>
           </form>
