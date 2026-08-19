@@ -273,15 +273,15 @@ body {
 }
 
 .btn-admin {
-  background: var(--btn-bg);
+  background: var(--admin);
   color: var(--btn-text);
-  box-shadow: 0 4px 12px rgba(243, 235, 217, 0.1);
+  box-shadow: 0 4px 12px var(--admin-glow);
 }
 
 .btn-admin:hover {
-  background: var(--btn-bg-hover);
+  background: var(--admin-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(243, 235, 217, 0.2);
+  box-shadow: 0 6px 20px rgba(138, 108, 88, 0.35);
 }
 
 .btn-outline {
@@ -654,21 +654,18 @@ body {
 
 /* High Legibility Sizing & Spacing for Authenticated Views */
 .content-container h2 {
-  font-size: 52px !important;
-  /* Increased above 50px */
-  font-weight: 800;
-  /* Extra bold */
+  font-size: 28px !important; /* Standard ERP size */
+  font-weight: 700;
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: var(--text-primary);
-  letter-spacing: -0.8px;
+  letter-spacing: -0.5px;
 }
 
 .content-container p,
 .content-container .sys-desc {
-  font-size: 22px !important;
-  /* Increased to 22px */
-  line-height: 1.6;
+  font-size: 15px !important; /* Standard ERP size */
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
@@ -1074,9 +1071,8 @@ body {
 }
 
 .erp-row-label {
-  width: 50px;
-  font-size: 18px;
-  /* Increased to 18px */
+  width: 40px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -1130,25 +1126,20 @@ body {
 }
 
 .pill-count {
-  font-size: 22px;
-  /* Increased to 22px */
+  font-size: 15px;
   font-weight: 700;
   color: #3E2F27;
-  /* Deep Espresso */
 }
 
 .pill-label {
-  font-size: 18px;
-  /* Increased to 18px */
+  font-size: 13px;
   font-weight: 600;
   color: #7E6A5F;
-  /* Medium Cocoa */
 }
 
 .pill-icon {
-  width: 24px;
-  /* Increased to 24px */
-  height: 24px;
+  width: 18px;
+  height: 18px;
   color: var(--primary);
   flex-shrink: 0;
   transition: color 0.2s;
@@ -1196,8 +1187,7 @@ body {
 }
 
 .table-filter-indicator {
-  font-size: 20px;
-  /* Increased to 20px */
+  font-size: 13px;
   color: var(--text-secondary);
   margin-bottom: 12px;
 }
@@ -1211,25 +1201,25 @@ body {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 20px;
-  /* Increased to 20px */
+  font-size: 14px;
 }
 
 .erp-dashboard-table th,
 .erp-dashboard-table td {
-  padding: 16px 20px;
-  /* More padding */
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  text-align: left;
+  white-space: nowrap;
 }
 
 .erp-dashboard-table th {
   color: var(--text-secondary);
   font-weight: 700;
   text-transform: uppercase;
-  font-size: 16px;
-  /* Increased to 16px */
+  font-size: 11px;
   letter-spacing: 0.5px;
   background-color: rgba(0, 0, 0, 0.15);
+  text-align: left;
 }
 
 .erp-dashboard-table tr:hover {
@@ -1240,15 +1230,12 @@ body {
   font-family: monospace;
   font-weight: 700;
   color: var(--primary);
-  font-size: 20px;
-  /* Increased to 20px */
+  font-size: 14px;
 }
 
 .btn-small-table {
-  padding: 8px 14px !important;
-  /* Larger padding */
-  font-size: 16px !important;
-  /* Increased to 16px */
+  padding: 4px 8px !important;
+  font-size: 12px !important;
   margin-top: 0 !important;
   width: auto !important;
 }
@@ -1256,10 +1243,9 @@ body {
 .badge.category-badge {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 4px 10px;
+  padding: 2px 8px;
   border-radius: 4px;
-  font-size: 16px;
-  /* Increased to 16px */
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
