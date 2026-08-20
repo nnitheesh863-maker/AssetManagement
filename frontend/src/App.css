@@ -1885,7 +1885,6 @@ body {
   background: linear-gradient(135deg, #d4af37 0%, #fff3cc 35%, #aa7c11 70%, #d4af37 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 2px 4px rgba(170, 124, 17, 0.4));
   text-transform: uppercase;
 }
 
@@ -1898,7 +1897,6 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 /* Premium Card */
@@ -2252,4 +2250,135 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #3E2F27 !important;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* ==========================================================================
+   NAVBAR BRAND LOGO & TITLE GLOW ANIMATIONS (CENTRAL ALIGNMENT)
+   ========================================================================== */
+
+.navbar-center-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 14px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+.nav-brand-logo-emblem {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 60%, #fff7eb 100%);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 2px 6px rgba(62, 47, 39, 0.08);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.nav-brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.nav-brand-title {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  font-family: var(--font-sans);
+  background: linear-gradient(90deg, #d4af37 0%, #fffae6 25%, #aa7c11 50%, #fffae6 75%, #d4af37 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: navTextShine 4s linear infinite;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.navbar-center-brand:hover .nav-brand-logo-emblem {
+  transform: scale(1.12) rotate(4deg);
+  border-color: rgba(212, 175, 55, 0.6);
+  box-shadow: 0 4px 10px rgba(62, 47, 39, 0.12);
+}
+
+.navbar-center-brand:hover .nav-brand-title {
+  transform: scale(1.02);
+}
+
+@keyframes navTextShine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+/* Adjust search to left */
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.navbar-search-left {
+  width: 260px !important;
+  height: 42px !important;
+  transition: all 0.3s ease !important;
+}
+
+.navbar-search-left .global-search-input {
+  height: 38px !important;
+  font-size: 14px !important;
+}
+
+.navbar-search-left:focus-within {
+  width: 320px !important;
+}
+
+/* ==========================================================================
+   ADMIN DASHBOARD CUSTOM STYLING & ANIMATIONS
+   ========================================================================== */
+
+.admin-grid-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 28px;
+}
+
+@media (max-width: 1024px) {
+  .admin-grid-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-container-scroll {
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.form-fade-in {
+  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+
 

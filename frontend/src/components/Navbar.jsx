@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logoImg from '../assets/logo.png';
 
 function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchChange, searchVal, profilePhoto }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -24,11 +25,8 @@ function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchCh
           </button>
         )}
 
-      </div>
-
-      {currentUser && (
-        <div className="navbar-center-search">
-          <div className="search-wrapper">
+        {currentUser && (
+          <div className="search-wrapper navbar-search-left">
             <svg className="search-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -40,6 +38,15 @@ function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchCh
               onChange={(e) => onSearchChange(e.target.value)}
             />
           </div>
+        )}
+      </div>
+
+      {currentUser && (
+        <div className="navbar-center-brand" onClick={() => onNavigate('dashboard')} title="Back to Dashboard">
+          <div className="nav-brand-logo-emblem">
+            <img src={logoImg} className="nav-brand-logo-img" alt="Shiv Furniture" />
+          </div>
+          <span className="nav-brand-title">SHIV FURNITURE</span>
         </div>
       )}
 
@@ -79,9 +86,6 @@ function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchCh
                 <div className="dropdown-divider"></div>
                 <button className="dropdown-item" onClick={() => handleDropdownItemClick('profile')}>
                   Profile
-                </button>
-                <button className="dropdown-item" onClick={() => handleDropdownItemClick('settings')}>
-                  Account Settings
                 </button>
                 <button className="dropdown-item" onClick={() => handleDropdownItemClick('notifications')}>
                   Notifications

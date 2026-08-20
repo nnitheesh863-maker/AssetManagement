@@ -87,8 +87,14 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
     }
 
     // Save success callback
-    const newUser = { loginId, email, password };
-    setSuccessMessage('Registration successful! Redirecting to login...');
+    const adminCreationKey = localStorage.getItem('assetflow_admin_creation_password');
+    let role = 'User';
+    if (adminCreationKey && password === adminCreationKey) {
+      role = 'System Administrator';
+    }
+    
+    const newUser = { loginId, email, password, role };
+    setSuccessMessage('Registration successful! Redirecting...');
     setTimeout(() => {
       onRegisterSuccess(newUser);
     }, 1200);

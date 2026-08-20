@@ -13,6 +13,8 @@ import Products from './pages/Products';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
+import AdminDashboard from './pages/AdminDashboard';
+import UserManagementPermissions from './pages/UserManagementPermissions';
 import './App.css';
 
 function App() {
@@ -54,7 +56,11 @@ function App() {
   // Auto-redirect logged-in users
   useEffect(() => {
     if (currentUser) {
-      setCurrentView('dashboard');
+      if (currentUser.role === 'System Administrator') {
+        setCurrentView('admin-dashboard');
+      } else {
+        setCurrentView('dashboard');
+      }
     } else {
       setCurrentView('login');
     }
@@ -71,8 +77,12 @@ function App() {
     setUsers(updatedUsers);
     localStorage.setItem('assetflow_users', JSON.stringify(updatedUsers));
 
-    // Switch to login page
-    setCurrentView('login');
+    // Switch to login page or auto-login if admin
+    if (newUser.role === 'System Administrator') {
+      setCurrentUser(newUser); 
+    } else {
+      setCurrentView('login');
+    }
   };
 
   const handleLogout = () => {
@@ -138,6 +148,7 @@ function App() {
             currentView={currentView}
             onNavigate={handleNavigation}
             isCollapsed={isSidebarCollapsed}
+            currentUser={currentUser}
           />
         )}
 
@@ -185,6 +196,8 @@ function App() {
               )}
               {currentView === 'settings' && <Settings />}
               {currentView === 'notifications' && <Notifications />}
+              {currentView === 'admin-dashboard' && <AdminDashboard currentUser={currentUser} />}
+              {currentView === 'user-permissions' && <UserManagementPermissions />}
             </>
           )}
         </main>
