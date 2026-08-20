@@ -25,7 +25,7 @@ async function initDb() {
         owner VARCHAR(100)
       );
     `);
-    
+
     // 2. Purchase Orders Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS purchase_orders (
@@ -98,6 +98,223 @@ async function initDb() {
     `);
 
     console.log("Database tables initialized successfully.");
+
+    // --- Database Seeding ---
+    const productsCount = await pool.query("SELECT COUNT(*) FROM products");
+    if (parseInt(productsCount.rows[0].count) === 0) {
+      console.log("Seeding products...");
+      const initialProducts = [
+        ['PROD-001', 'Deluxe Oak Dining Table', 'Custom Dining', 1200, 800],
+        ['PROD-002', 'Ash Wood Chair Pack', 'Dining Room', 380, 250],
+        ['PROD-003', 'Beech Wood Bedframe', 'Bedroom Series', 1100, 750],
+        ['PROD-004', 'Cedar Garden Table', 'Patio Series', 720, 480],
+        ['PROD-005', 'Cherry Wood Bookshelf', 'Living Room', 950, 620],
+        ['PROD-006', 'Birch Coffee Table', 'Living Room', 410, 270],
+        ['PROD-007', 'Walnut Sideboard', 'Custom Dining', 1500, 1000],
+        ['PROD-008', 'Door Frames', 'Pre-Production', 150, 90],
+        ['PROD-009', 'Lighting Frame', 'Assembly Line', 200, 120]
+      ];
+      for (const p of initialProducts) {
+        await pool.query(
+          "INSERT INTO products (id, name, category, sales_price, cost_price) VALUES ($1, $2, $3, $4, $5)",
+          p
+        );
+      }
+    }
+
+    const bomsCount = await pool.query("SELECT COUNT(*) FROM boms");
+    if (parseInt(bomsCount.rows[0].count) === 0) {
+      console.log("Seeding BOM templates...");
+      const initialBoms = [
+        [
+          'BOM-000001',
+          'DF-01',
+          'Door Frames',
+          10.0,
+          'Units',
+          JSON.stringify([
+            { id: 1, name: 'Raw Lumber', qty: 15, unit: 'Units' },
+            { id: 2, name: 'Wood Glue', qty: 2, unit: 'Units' }
+          ]),
+          JSON.stringify([
+            { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45 },
+            { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60 }
+          ])
+        ],
+        [
+          'BOM-000002',
+          'LF-02',
+          'Lighting Frame',
+          5.0,
+          'Units',
+          JSON.stringify([
+            { id: 1, name: 'Pendant lights', qty: 5, unit: 'Units' },
+            { id: 2, name: 'Drawer handles', qty: 10, unit: 'Units' }
+          ]),
+          JSON.stringify([
+            { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30 },
+            { id: 2, operation: 'Finishing', workCenter: 'Finishing Line', duration: 20 }
+          ])
+        ]
+      ];
+      for (const b of initialBoms) {
+        await pool.query(
+          "INSERT INTO boms (id, reference, product, qty, unit, components, work_orders) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+          b
+        );
+      }
+    }
+
+    const salesCount = await pool.query("SELECT COUNT(*) FROM sales_orders");
+    if (parseInt(salesCount.rows[0].count) === 0) {
+      console.log("Seeding sales orders...");
+      const initialSales = [
+        [
+          'SO-001',
+          '2026-08-19',
+          'Mahesh Gupta Furniture',
+          'Confirmed',
+          'Amit Sharma',
+          JSON.stringify([{
+            product: 'Deluxe Oak Dining Table',
+            price: 1200,
+            qty: 1,
+            delivered: 0,
+            address: 'Colaba, Mumbai, 400001'
+          }]),
+          1200,
+          ''
+        ],
+        [
+          'SO-002',
+          '2026-08-20',
+          'System Administrator Client',
+          'Draft',
+          'Neha Verma',
+          JSON.stringify([{
+            product: 'Ash Wood Chair Pack',
+            price: 380,
+            qty: 2,
+            delivered: 0,
+            address: 'Colaba, Mumbai, 400001'
+          }]),
+          760,
+          ''
+        ]
+      ];
+      for (const s of initialSales) {
+        await pool.query(
+          "INSERT INTO sales_orders (id, date, customer, status, salesperson, items, total, owner) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+          s
+        );
+      }
+    }
+
+    const purchaseCount = await pool.query("SELECT COUNT(*) FROM purchase_orders");
+    if (parseInt(purchaseCount.rows[0].count) === 0) {
+      console.log("Seeding purchase orders...");
+      const initialPurchases = [
+        [
+          'PO-001',
+          '2026-08-18',
+          'National Timber Traders',
+          'Goregaon East, Mumbai, 400063',
+          'Ravi Patel',
+          'Raw Lumber',
+          100,
+          100,
+          'Fully Received',
+          ''
+        ],
+        [
+          'PO-002',
+          '2026-08-20',
+          'Apex Hardware Supplier',
+          'Andheri West, Mumbai, 400053',
+          'Meera Singh',
+          'Drawer handles',
+          250,
+          0,
+          'Confirmed',
+          ''
+        ]
+      ];
+      for (const p of initialPurchases) {
+        await pool.query(
+          "INSERT INTO purchase_orders (id, date, vendor, address, responsible, item, qty, received, status, owner) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          p
+        );
+      }
+    }
+
+    const mfgCount = await pool.query("SELECT COUNT(*) FROM manufacturing_orders");
+    if (parseInt(mfgCount.rows[0].count) === 0) {
+      console.log("Seeding manufacturing orders...");
+      const initialMfg = [
+        [
+          'MO-000001',
+          '2026-08-20',
+          'Door Frames',
+          'BOM-000001',
+          10,
+          'Units',
+          'Amit Sharma',
+          'Confirmed',
+          JSON.stringify([
+            { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
+            { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
+          ]),
+          JSON.stringify([
+            { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
+            { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
+          ])
+        ],
+        [
+          'MO-000002',
+          '2026-08-19',
+          'Lighting Frame',
+          '',
+          5,
+          'Units',
+          'Neha Verma',
+          'Draft',
+          JSON.stringify([
+            { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
+          ]),
+          JSON.stringify([
+            { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
+          ])
+        ]
+      ];
+      for (const m of initialMfg) {
+        await pool.query(
+          "INSERT INTO manufacturing_orders (id, date, product, bom, qty, units, assignee, status, components, operations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+          m
+        );
+      }
+    }
+
+    const auditCount = await pool.query("SELECT COUNT(*) FROM audit_logs");
+    if (parseInt(auditCount.rows[0].count) === 0) {
+      console.log("Seeding audit logs...");
+      const initialLogs = [
+        ['26 May 2026, 11:42 AM', 'Amit Sharma', 'Sales', 'Product', 'PROD-0034', 'Updated', 'Sales Price', '₹120.00', '₹135.00'],
+        ['26 May 2026, 11:15 AM', 'Neha Verma', 'Sales', 'Item', 'ITEM-0102', 'Updated', 'Cost Price', '₹80.00', '₹85.00'],
+        ['26 May 2026, 10:55 AM', 'Ravi Patel', 'Purchase', 'Purchase Order', 'PO-2026-087', 'Created', '-', '-', '-'],
+        ['26 May 2026, 10:20 AM', 'Amit Sharma', 'Purchase', 'Item', 'ITEM-0456', 'Updated', 'Cost Price', '₹45.00', '₹50.00'],
+        ['26 May 2026, 09:48 AM', 'Meera Singh', 'BOM', 'BOM', 'BOM-2026-015', 'Created', '-', '-', '-'],
+        ['26 May 2026, 09:30 AM', 'Ravi Patel', 'Sales', 'Item', 'ITEM-0102', 'Updated', 'Sales Price', '₹110.00', '₹120.00'],
+        ['26 May 2026, 09:10 AM', 'Neha Verma', 'Purchase', 'Product', 'PROD-0021', 'Deleted', '-', '-', '-'],
+        ['26 May 2026, 08:45 AM', 'Amit Sharma', 'Manufacturing', 'Manufacturing Order', 'MO-2026-022', 'Updated', 'Demand', '80', '100'],
+        ['26 May 2026, 08:30 AM', 'Meera Singh', 'Manufacturing', 'Material Consumption', 'MC-2026-055', 'Updated', 'Consumed Qty', '45', '50']
+      ];
+      for (const l of initialLogs) {
+        await pool.query(
+          `INSERT INTO audit_logs (datetime, "user", module, type, record_id, action, field, old_val, new_val) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          l
+        );
+      }
+    }
   } catch (error) {
     console.error("Database initialization failed:", error.message);
   }
@@ -262,6 +479,8 @@ app.post("/api/audit-logs", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
 // --- Products Routes ---
 app.get("/api/products", async (req, res) => {
   try {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { mockDashboardData } from '../data/mockData';
 
 function Dashboard({ currentUser, onNavigate, searchVal }) {
@@ -7,6 +7,98 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
 
   // Store the selected order for detail modal view
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  // API states
+  const [salesOrders, setSalesOrders] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [manufacturingOrders, setManufacturingOrders] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const [salesRes, purchaseRes, mfgRes, auditRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/sales-orders`),
+          fetch(`${API_BASE_URL}/purchase-orders`),
+          fetch(`${API_BASE_URL}/manufacturing-orders`),
+          fetch(`${API_BASE_URL}/audit-logs`)
+        ]);
+
+        let salesData = [];
+        if (salesRes.ok) {
+          const rawSales = await salesRes.ok ? await salesRes.json() : [];
+          salesData = rawSales.map(b => {
+            const item = b.items[0] || {};
+            return {
+              id: b.id,
+              name: item.product || 'Unknown Product',
+              type: 'Custom Dining',
+              status: b.status,
+              amount: `$${(b.total || 0).toLocaleString()}`,
+              date: b.date,
+              owner: b.salesperson || 'Amit Sharma'
+            };
+          });
+        }
+
+        let purchaseData = [];
+        if (purchaseRes.ok) {
+          const rawPurchase = await purchaseRes.json();
+          purchaseData = rawPurchase.map(p => ({
+            id: p.id,
+            name: p.item || 'Raw Lumber',
+            type: 'Raw Materials',
+            status: p.status,
+            amount: `$${(p.qty * 10).toLocaleString()}`,
+            date: p.date,
+            owner: p.responsible || 'Ravi Patel'
+          }));
+        }
+
+        let mfgData = [];
+        if (mfgRes.ok) {
+          const rawMfg = await mfgRes.json();
+          mfgData = rawMfg.map(m => ({
+            id: m.id,
+            name: m.product || 'Door Frames',
+            type: 'Assembly Line',
+            status: m.status,
+            qty: `${m.qty || 0} ${m.units || 'Units'}`,
+            date: m.date,
+            owner: m.assignee || 'Amit Sharma'
+          }));
+        }
+
+        let activityData = [];
+        if (auditRes.ok) {
+          const rawAudit = await auditRes.json();
+          activityData = rawAudit.slice(0, 8).map(l => ({
+            id: `act-${l.id}`,
+            text: `${l.user || 'System'} ${l.action ? l.action.toLowerCase() : 'updated'} ${l.type || 'record'} ${l.record_id || ''}`,
+            time: l.datetime || 'Just now'
+          }));
+        }
+
+        setSalesOrders(salesData.length > 0 ? salesData : mockDashboardData.salesOrders);
+        setPurchaseOrders(purchaseData.length > 0 ? purchaseData : mockDashboardData.purchaseOrders);
+        setManufacturingOrders(mfgData.length > 0 ? mfgData : mockDashboardData.manufacturingOrders);
+        setActivities(activityData.length > 0 ? activityData : mockDashboardData.recentActivities);
+      } catch (err) {
+        console.warn("Failed to fetch dashboard data from backend. Falling back to mock data.", err);
+        setSalesOrders(mockDashboardData.salesOrders);
+        setPurchaseOrders(mockDashboardData.purchaseOrders);
+        setManufacturingOrders(mockDashboardData.manufacturingOrders);
+        setActivities(mockDashboardData.recentActivities);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, []);
 
   const handlePillClick = (section, mode, status) => {
     if (activeFilter && activeFilter.section === section && activeFilter.mode === mode && activeFilter.status === status) {
@@ -19,9 +111,9 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
   // Helper to filter data based on section, mode (All vs My), and status
   const getFilteredOrders = (section) => {
     let list = [];
-    if (section === 'sales') list = mockDashboardData.salesOrders;
-    else if (section === 'purchase') list = mockDashboardData.purchaseOrders;
-    else if (section === 'manufacturing') list = mockDashboardData.manufacturingOrders;
+    if (section === 'sales') list = salesOrders;
+    else if (section === 'purchase') list = purchaseOrders;
+    else if (section === 'manufacturing') list = manufacturingOrders;
 
     // Apply global search if present
     if (searchVal) {
@@ -117,53 +209,62 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
     return null;
   };
 
-  // Status mappings
+  const getPillsForSection = (ordersList, statuses, mode) => {
+    return statuses.map(status => {
+      const count = ordersList.filter(o => {
+        const matchesStatus = o.status.toLowerCase() === status.toLowerCase();
+        const matchesOwner = mode === 'All' || o.owner === currentUser.loginId;
+        return matchesStatus && matchesOwner;
+      }).length;
+      return { count, label: status };
+    });
+  };
+
+  const salesStatuses = ['Draft', 'Confirmed', 'Partially Delivered', 'Delivered', 'Late'];
+  const purchaseStatuses = ['Draft', 'Confirmed', 'Partially Received', 'Received', 'Late'];
+  const manufacturingStatuses = ['Draft', 'Confirmed', 'In Progress', 'To Close', 'Done'];
+
   const salesPills = {
-    All: [
-      { count: 2, label: 'Draft' },
-      { count: 7, label: 'Confirmed' },
-      { count: 1, label: 'Partially Delivered' },
-      { count: 11, label: 'Delivered' },
-      { count: 11, label: 'Late' }
-    ],
-    My: [
-      { count: 7, label: 'Confirmed' },
-      { count: 1, label: 'Draft' },
-      { count: 5, label: 'Delivered' }
-    ]
+    All: getPillsForSection(salesOrders, salesStatuses, 'All'),
+    My: getPillsForSection(salesOrders, salesStatuses, 'My')
   };
 
   const purchasePills = {
-    All: [
-      { count: 2, label: 'Draft' },
-      { count: 7, label: 'Confirmed' },
-      { count: 1, label: 'Partially Received' },
-      { count: 11, label: 'Received' },
-      { count: 11, label: 'Late' }
-    ],
-    My: [
-      { count: 7, label: 'Confirmed' },
-      { count: 1, label: 'Draft' },
-      { count: 5, label: 'Received' }
-    ]
+    All: getPillsForSection(purchaseOrders, purchaseStatuses, 'All'),
+    My: getPillsForSection(purchaseOrders, purchaseStatuses, 'My')
   };
 
   const manufacturingPills = {
-    All: [
-      { count: 2, label: 'Draft' },
-      { count: 7, label: 'Confirmed' },
-      { count: 1, label: 'In Progress' },
-      { count: 5, label: 'To Close' },
-      { count: 11, label: 'Done' }
-    ],
-    My: [
-      { count: 7, label: 'Confirmed' },
-      { count: 1, label: 'In Progress' },
-      { count: 5, label: 'Done' }
-    ]
+    All: getPillsForSection(manufacturingOrders, manufacturingStatuses, 'All'),
+    My: getPillsForSection(manufacturingOrders, manufacturingStatuses, 'My')
   };
 
-  const activities = mockDashboardData.recentActivities;
+  // Resolve activities fallback dynamically
+  const displayActivities = activities.length > 0 ? activities : mockDashboardData.recentActivities;
+
+  if (loading) {
+    return (
+      <div className="page-content animated fadeIn" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <style>{`
+          @keyframes customSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(207, 142, 109, 0.1)',
+            borderTopColor: 'var(--primary)',
+            borderRadius: '50%',
+            animation: 'customSpin 1s linear infinite'
+          }}></div>
+          <span style={{ fontSize: '15px', color: 'var(--text-secondary)', fontWeight: '600' }}>Connecting to ERP Engine...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-content animated fadeIn">
@@ -484,7 +585,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
       <div className="card glass erp-dashboard-panel hub-blue">
         <h3 className="erp-panel-title" style={{ textAlign: 'left', marginBottom: '18px' }}>Recent Activity</h3>
         <div className="activity-list-container">
-          {activities.map((act) => (
+          {displayActivities.map((act) => (
             <div className="activity-item-row" key={act.id}>
               <div className="activity-dot-indicator"></div>
               <div className="activity-detail-meta">

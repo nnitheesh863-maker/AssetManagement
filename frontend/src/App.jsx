@@ -32,6 +32,25 @@ function App() {
   });
   const [currentUser, setCurrentUser] = useState(null);
 
+  // Cleanup teacher@gmail.com from local storage if exists
+  useEffect(() => {
+    const storedUsers = localStorage.getItem('assetflow_users');
+    if (storedUsers) {
+      try {
+        const parsed = JSON.parse(storedUsers);
+        const filtered = parsed.filter(
+          (u) => u.loginId !== 'teacher@gmail.com' && u.email !== 'teacher@gmail.com'
+        );
+        if (parsed.length !== filtered.length) {
+          localStorage.setItem('assetflow_users', JSON.stringify(filtered));
+          setUsers(filtered);
+        }
+      } catch (e) {
+        console.error('Failed to clean up local storage users:', e);
+      }
+    }
+  }, []);
+
   // Auto-redirect logged-in users
   useEffect(() => {
     if (currentUser) {

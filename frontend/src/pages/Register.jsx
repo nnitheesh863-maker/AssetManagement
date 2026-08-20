@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logoImg from '../assets/logo.png';
 
 function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
   // Fields
@@ -6,6 +7,8 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rePassword, setRePassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRePassword, setShowRePassword] = useState(false);
 
   // Feedbacks
   const [errorMessage, setErrorMessage] = useState('');
@@ -40,7 +43,7 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
     const isLoginIdTaken = users.some(
       (u) => u.loginId.toLowerCase() === loginId.toLowerCase()
     ) || loginId.toLowerCase() === 'admin123';
-    
+
     if (isLoginIdTaken) {
       setErrorMessage('Login ID already exists.');
       return;
@@ -95,14 +98,13 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
 
   return (
     <div className="auth-container register-container">
-      {/* Brand logo */}
-      <div className="brand-logo">
-        <svg viewBox="0 0 24 24" className="brand-icon" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M7 3h10a1 1 0 0 1 1 1v8H6V4a1 1 0 0 1 1-1z" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M5 12h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M6 16v5M18 16v5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <span className="brand-text">Shiv Furniture</span>
+      {/* Brand logo container */}
+      <div className="brand-logo-container">
+        <div className="brand-logo-emblem">
+          <img src={logoImg} className="brand-logo-img" alt="Shiv Furniture" />
+        </div>
+        <h1 className="brand-title">SHIV FURNITURE</h1>
+        <p className="brand-subtitle">Premium Asset & Inventory Management</p>
       </div>
 
       <div className="card glass signup-card">
@@ -137,28 +139,47 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
 
           <div className="input-group">
             <label htmlFor="regPassword">Enter Password</label>
-            <input
-              type="password"
-              id="regPassword"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Create strong password"
-              required
-            />
-            
+            <div className="password-wrapper">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="regPassword"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Create strong password"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+
             {password.length > 0 && (
               <div className="password-checklist">
                 <div className={`check-item ${passwordStrength.hasLength ? 'valid' : 'invalid'}`}>
-                  {passwordStrength.hasLength ? '✓' : '✗'} More than 8 characters
+                  <span className="check-icon">{passwordStrength.hasLength ? '✓' : '✗'}</span> More than 8 characters
                 </div>
                 <div className={`check-item ${passwordStrength.hasSmall ? 'valid' : 'invalid'}`}>
-                  {passwordStrength.hasSmall ? '✓' : '✗'} Small case letter (a-z)
+                  <span className="check-icon">{passwordStrength.hasSmall ? '✓' : '✗'}</span> Small case letter (a-z)
                 </div>
                 <div className={`check-item ${passwordStrength.hasLarge ? 'valid' : 'invalid'}`}>
-                  {passwordStrength.hasLarge ? '✓' : '✗'} Large case letter (A-Z)
+                  <span className="check-icon">{passwordStrength.hasLarge ? '✓' : '✗'}</span> Large case letter (A-Z)
                 </div>
                 <div className={`check-item ${passwordStrength.hasSpecial ? 'valid' : 'invalid'}`}>
-                  {passwordStrength.hasSpecial ? '✓' : '✗'} Special character (!@#$ etc.)
+                  <span className="check-icon">{passwordStrength.hasSpecial ? '✓' : '✗'}</span> Special character (!@#$ etc.)
                 </div>
               </div>
             )}
@@ -166,14 +187,33 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
 
           <div className="input-group">
             <label htmlFor="rePassword">Re-Enter Password</label>
-            <input
-              type="password"
-              id="rePassword"
-              value={rePassword}
-              onChange={(e) => setRePassword(e.target.value)}
-              placeholder="Confirm password"
-              required
-            />
+            <div className="password-wrapper">
+              <input
+                type={showRePassword ? 'text' : 'password'}
+                id="rePassword"
+                value={rePassword}
+                onChange={(e) => setRePassword(e.target.value)}
+                placeholder="Confirm password"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowRePassword(!showRePassword)}
+                title={showRePassword ? 'Hide password' : 'Show password'}
+              >
+                {showRePassword ? (
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
             {rePassword.length > 0 && password !== rePassword && (
               <div className="input-warning">Passwords do not match.</div>
             )}

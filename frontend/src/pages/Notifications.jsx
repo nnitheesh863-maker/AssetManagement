@@ -11,7 +11,7 @@ function Notifications() {
           </svg>
         </div>
         <h2 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Notifications Center</h2>
-        <p style={{ fontSize: '27px', lineHeight: '1.6', color: '#5E4A3F', margin: 0 }}>
+        <p style={{ fontSize: '16px', lineHeight: '1.6', color: '#5E4A3F', margin: 0 }}>
           This module is ready for implementation. Later, this view will connect to Express.js REST APIs and display a full PostgreSQL database query console for system alerts, production logs, shipping delays, and inventory reports.
         </p>
       </div>
