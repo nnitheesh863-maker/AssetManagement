@@ -56,7 +56,10 @@ function App() {
   // Auto-redirect logged-in users
   useEffect(() => {
     if (currentUser) {
-      if (currentUser.role === 'System Administrator') {
+      const isAdm = currentUser.role === 'System Administrator' || 
+                    currentUser.role === 'ADMIN' || 
+                    String(currentUser.role).toLowerCase().includes('admin');
+      if (isAdm) {
         setCurrentView('admin-dashboard');
       } else {
         setCurrentView('dashboard');

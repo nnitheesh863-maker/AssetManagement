@@ -7,27 +7,7 @@ const COLORS = ['#CF8E6D','#8a6c58','#5D7052','#7a7a9d','#b05a6c','#4a8fa8','#a0
 const avatarColor = (n = '') => COLORS[(n.charCodeAt(0) || 0) % COLORS.length];
 const initials   = (n = '') => n.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
 
-/* ═══════════════════════════════════════════
-   Permission data matching the wireframe
-   Module | Action | Admin | User | None
-═══════════════════════════════════════════ */
-const PERM_ROWS = [
-  { module: 'Sales',         action: 'View',              admin: true,  user: true,      none: 'Optional' },
-  { module: 'Sales',         action: 'Create',            admin: true,  user: true,      none: false },
-  { module: 'Sales',         action: 'Edit',              admin: true,  user: 'Limited', none: false },
-  { module: 'Sales',         action: 'Delete',            admin: true,  user: false,     none: false },
-  { module: 'Sales',         action: 'Approve (Confirm)', admin: true,  user: false,     none: false },
-  { module: 'Purchase',      action: 'View',              admin: true,  user: true,      none: 'Optional' },
-  { module: 'Purchase',      action: 'Approve',           admin: true,  user: false,     none: false },
-  { module: 'Purchase',      action: 'Edit',              admin: true,  user: 'Limited', none: false },
-  { module: 'Purchase',      action: 'Create',            admin: true,  user: true,      none: false },
-  { module: 'Manufacturing', action: 'Production Entry',  admin: true,  user: true,      none: false },
-  { module: 'Manufacturing', action: 'Edit BOM',          admin: true,  user: false,     none: false },
-  { module: 'Manufacturing', action: 'View',              admin: true,  user: true,      none: 'Optional' },
-  { module: 'Product',       action: 'View',              admin: true,  user: true,      none: 'Optional' },
-  { module: 'Product',       action: 'Create',            admin: true,  user: true,      none: false },
-  { module: 'Product',       action: 'Edit',              admin: true,  user: 'Limited', none: false },
-];
+
 
 /* Per-user field-level permissions (shown when a user is selected) */
 const FIELD_PERMS = {
@@ -40,30 +20,27 @@ const FIELD_PERMS = {
     { field: 'Delivered Quantity', create: true,  view: true,  edit: true,  del: true  },
     { field: 'Sales Price',        create: true,  view: true,  edit: true,  del: true  },
     { field: 'Status',             create: true,  view: true,  edit: true,  del: false },
-    { field: 'Total',              create: true,  view: true,  edit: 'Recomputed', del: false },
+    { field: 'Total',              create: true,  view: true,  edit: 'Auto Recomputed', del: false },
     { field: 'Creation Date',      create: 'Auto Compute', view: true, edit: false, del: false },
   ],
   Purchase: [
-    { field: 'Vendor',             create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Vendor Address',     create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Purchase Person',    create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Item / Product',     create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Ordered Quantity',   create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Received Quantity',  create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Purchase Price',     create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Status',             create: true,  view: true,  edit: true,  del: false },
-    { field: 'Total',              create: true,  view: true,  edit: 'Recomputed', del: false },
-    { field: 'Creation Date',      create: 'Auto Compute', view: true, edit: false, del: false },
+    { field: 'Vendor',              create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Vendor Address',      create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Responsible Person',  create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Product',             create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Ordered Quantity',    create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Received Quantity',   create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Cost Price',          create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Total',               create: true,  view: true,  edit: 'Auto Recomputed', del: false },
+    { field: 'Creation Date',       create: 'Auto Compute', view: true, edit: false, del: false },
   ],
   Manufacturing: [
-    { field: 'Work Order',         create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Product',            create: true,  view: true,  edit: true,  del: true  },
-    { field: 'BOM',                create: true,  view: true,  edit: false, del: false },
-    { field: 'Qty to Produce',     create: true,  view: true,  edit: true,  del: true  },
-    { field: 'Components',         create: true,  view: true,  edit: 'Auto', del: false },
-    { field: 'Status',             create: true,  view: true,  edit: true,  del: false },
-    { field: 'Production Entry',   create: true,  view: true,  edit: true,  del: false },
-    { field: 'Creation Date',      create: 'Auto Compute', view: true, edit: false, del: false },
+    { field: 'Product to Manufacture', create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Product Quantity',       create: true,  view: true,  edit: true,  del: true  },
+    { field: 'BoM',                    create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Responsible Person',     create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Finished Quantity',      create: true,  view: true,  edit: true,  del: true  },
+    { field: 'Creation Date',          create: 'Auto Compute', view: true, edit: false, del: false },
   ],
   Product: [
     { field: 'Product Name',       create: true,  view: true,  edit: true,  del: true  },
@@ -109,7 +86,6 @@ export default function AdminDashboard({ currentUser }) {
   const [usersList, setUsersList]         = useState([]);
   const [searchTerm, setSearchTerm]       = useState('');
   const [selectedUser, setSelectedUser]   = useState(null);
-  const [rightView, setRightView]         = useState('permissions');   // 'permissions' | 'profile'
   const [activeFieldTab, setActiveFieldTab] = useState('Sales');
   const [editPosition, setEditPosition]   = useState('');
   const [positionSaved, setPositionSaved] = useState(false);
@@ -177,6 +153,56 @@ export default function AdminDashboard({ currentUser }) {
     if (selectedUser?.loginId === id) { setSelectedUser(null); setRightView('permissions'); }
   };
 
+  const triggerConfettiBlast = () => {
+    // Dynamic import of confetti from CDN if not already loaded globally
+    const runConfetti = () => {
+      if (window.confetti) {
+        // Blast
+        window.confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.6 }
+        });
+        
+        // Snow (lasts 2.5 seconds)
+        const duration = 2.5 * 1000;
+        const animationEnd = Date.now() + duration;
+        const skew = 1;
+
+        const frame = () => {
+          const timeLeft = animationEnd - Date.now();
+          if (timeLeft <= 0) return;
+          const ticks = Math.max(200, 500 * (timeLeft / duration));
+          window.confetti({
+            particleCount: 1,
+            startVelocity: 0,
+            ticks: ticks,
+            origin: {
+              x: Math.random(),
+              y: (Math.random() * skew) - 0.2
+            },
+            colors: ['#CF8E6D', '#a0683a', '#ffffff', '#d4af37'],
+            shapes: ['circle'],
+            gravity: Math.random() * 0.4 + 0.2,
+            scalar: Math.random() * 0.7 + 0.5,
+            drift: Math.random() * 2 - 1
+          });
+          requestAnimationFrame(frame);
+        };
+        frame();
+      }
+    };
+
+    if (!window.confetti) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+      script.onload = runConfetti;
+      document.body.appendChild(script);
+    } else {
+      runConfetti();
+    }
+  };
+
   const handleAddUser = (e) => {
     e.preventDefault(); setFormError(''); setFormSuccess('');
     if (!form.loginId || !form.name || !form.email || !form.password) { setFormError('Login ID, Name, Email and Password are required.'); return; }
@@ -185,6 +211,7 @@ export default function AdminDashboard({ currentUser }) {
     setUsersList(updated);
     localStorage.setItem('assetflow_users', JSON.stringify(updated));
     setFormSuccess('User registered!');
+    triggerConfettiBlast();
     setTimeout(() => { setIsAddModalOpen(false); setForm({ loginId:'', name:'', email:'', mobile:'', address:'', password:'', role:'User', position:'' }); setFormSuccess(''); }, 900);
   };
 
@@ -215,27 +242,6 @@ export default function AdminDashboard({ currentUser }) {
           </div>
         </div>
         <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
-          {/* View toggle */}
-          <div style={{ display:'flex', borderRadius:'10px', border:'1.5px solid rgba(207,142,109,0.22)', overflow:'hidden' }}>
-            {[
-              { key:'permissions', icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4', label:'Permissions' },
-              { key:'profile',     icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z', label:'User Profile' },
-            ].map(({ key, icon, label }) => (
-              <button
-                key={key}
-                onClick={() => setRightView(key)}
-                style={{
-                  display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', border:'none', cursor:'pointer', fontSize:'12px', fontWeight:'700',
-                  background: rightView === key ? 'linear-gradient(135deg,#CF8E6D,#a0683a)' : 'rgba(255,255,255,0.8)',
-                  color: rightView === key ? '#fff' : 'var(--text-secondary)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2" style={{width:'14px',height:'14px'}}><path strokeLinecap="round" strokeLinejoin="round" d={icon} /></svg>
-                {label}
-              </button>
-            ))}
-          </div>
           {/* Settings */}
           <button onClick={() => setShowAdminSettings(v => !v)}
             style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 14px', borderRadius:'10px', border:'1.5px solid rgba(207,142,109,0.22)', background: showAdminSettings ? 'rgba(207,142,109,0.1)' : 'rgba(255,255,255,0.8)', cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'var(--text-primary)' }}>
@@ -295,7 +301,7 @@ export default function AdminDashboard({ currentUser }) {
             {filtered.length === 0 && <div style={{ padding:'20px', textAlign:'center', color:'var(--text-secondary)', fontSize:'13px' }}>No users found.</div>}
             {filtered.map(u => {
               const isAdmin = u.role === 'System Administrator' || u.role === 'ADMIN';
-              const sel = selectedUser?.loginId === u.loginId && rightView === 'profile';
+              const sel = selectedUser?.loginId === u.loginId;
               const photo = getUserPhoto(u.loginId);
               return (
                 <div key={u.loginId}
@@ -327,50 +333,10 @@ export default function AdminDashboard({ currentUser }) {
         {/* ─── RIGHT PANEL ─── */}
         <div style={{ flex:1, overflow:'auto', padding:'22px 26px', display:'flex', flexDirection:'column', gap:'22px', minWidth:0 }}>
 
-          {/* ═══ VIEW: USER MANAGEMENT PERMISSIONS (global table) ═══ */}
-          {rightView === 'permissions' && (
-            <div style={{ background:'rgba(255,255,255,0.7)', backdropFilter:'blur(10px)', borderRadius:'18px', border:'1.5px solid rgba(207,142,109,0.14)', boxShadow:'0 4px 24px rgba(78,59,49,0.06)', padding:'24px' }}>
-              <div style={{ marginBottom:'18px' }}>
-                <div style={{ fontSize:'11px', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-secondary)', marginBottom:'4px' }}>Global Policy</div>
-                <h3 style={{ margin:0, fontSize:'20px', fontWeight:'800', color:'var(--text-primary)' }}>User Management Permissions</h3>
-                <p style={{ margin:'4px 0 0', fontSize:'13px', color:'var(--text-secondary)' }}>Role-based access matrix governing system administrators and general user actions across all modules.</p>
-              </div>
 
-              <div style={{ overflowX:'auto', borderRadius:'14px', border:'1.5px solid rgba(207,142,109,0.14)' }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'13px' }}>
-                  <thead>
-                    <tr style={{ background:'rgba(207,142,109,0.06)' }}>
-                      <th style={{ textAlign:'left', padding:'12px 14px', fontSize:'11px', fontWeight:'800', letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-secondary)', borderBottom:'2px solid rgba(207,142,109,0.14)', minWidth:'130px' }}>Module</th>
-                      <th style={{ textAlign:'left', padding:'12px 14px', fontSize:'11px', fontWeight:'800', letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-secondary)', borderBottom:'2px solid rgba(207,142,109,0.14)', minWidth:'150px' }}>Action</th>
-                      <th style={{ textAlign:'center', padding:'12px 14px', fontSize:'11px', fontWeight:'800', letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-secondary)', borderBottom:'2px solid rgba(207,142,109,0.14)', minWidth:'80px' }}>Admin</th>
-                      <th style={{ textAlign:'center', padding:'12px 14px', fontSize:'11px', fontWeight:'800', letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-secondary)', borderBottom:'2px solid rgba(207,142,109,0.14)', minWidth:'80px' }}>User</th>
-                      <th style={{ textAlign:'center', padding:'12px 14px', fontSize:'11px', fontWeight:'800', letterSpacing:'0.06em', textTransform:'uppercase', color:'var(--text-secondary)', borderBottom:'2px solid rgba(207,142,109,0.14)', minWidth:'90px' }}>None</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PERM_ROWS.map((row, i) => {
-                      const prevModule = i > 0 ? PERM_ROWS[i-1].module : '';
-                      const isNewModule = row.module !== prevModule;
-                      return (
-                        <tr key={i} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(207,142,109,0.025)', borderTop: isNewModule && i > 0 ? '2px solid rgba(207,142,109,0.12)' : 'none' }}>
-                          <td style={{ padding:'10px 14px', fontWeight: isNewModule ? '700' : '500', color: isNewModule ? 'var(--text-primary)' : 'var(--text-secondary)', borderBottom:'1px solid rgba(207,142,109,0.07)' }}>
-                            {isNewModule ? row.module : ''}
-                          </td>
-                          <td style={{ padding:'10px 14px', fontWeight:'600', color:'var(--text-primary)', borderBottom:'1px solid rgba(207,142,109,0.07)' }}>{row.action}</td>
-                          <td style={{ textAlign:'center', padding:'10px 14px', borderBottom:'1px solid rgba(207,142,109,0.07)' }}><PermCell val={row.admin} /></td>
-                          <td style={{ textAlign:'center', padding:'10px 14px', borderBottom:'1px solid rgba(207,142,109,0.07)' }}><PermCell val={row.user} /></td>
-                          <td style={{ textAlign:'center', padding:'10px 14px', borderBottom:'1px solid rgba(207,142,109,0.07)' }}><PermCell val={row.none} /></td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
-          {/* ═══ VIEW: USER PROFILE + FIELD PERMISSIONS ═══ */}
-          {rightView === 'profile' && !selectedUser && (
+          {/* ═══ USER PROFILE + FIELD PERMISSIONS ═══ */}
+          {!selectedUser && (
             <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'14px', color:'var(--text-secondary)', padding:'60px 0' }}>
               <div style={{ width:'72px', height:'72px', borderRadius:'50%', background:'rgba(207,142,109,0.10)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <svg fill="none" viewBox="0 0 24 24" stroke="#CF8E6D" strokeWidth="1.5" style={{width:'36px',height:'36px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -380,7 +346,7 @@ export default function AdminDashboard({ currentUser }) {
             </div>
           )}
 
-          {rightView === 'profile' && selectedUser && (
+          {selectedUser && (
             <>
               {/* ── Profile Card ── */}
               <div style={{ background:'rgba(255,255,255,0.7)', backdropFilter:'blur(10px)', borderRadius:'18px', border:'1.5px solid rgba(207,142,109,0.14)', boxShadow:'0 4px 24px rgba(78,59,49,0.06)', padding:'24px' }}>

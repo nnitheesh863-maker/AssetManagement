@@ -22,6 +22,62 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
   const [resetSuccess, setResetSuccess] = useState('');
   const [resetError, setResetError] = useState('');
 
+  const triggerExplosion = (isAdmin = false) => {
+    const launchConfetti = () => {
+      if (window.confetti) {
+        if (isAdmin) {
+          // 50x Ultra Premium Admin full screen blast using bright gold & orange particles
+          
+          // Left-side burst
+          window.confetti({
+            particleCount: 150,
+            angle: 60,
+            spread: 80,
+            origin: { x: 0, y: 0.8 },
+            colors: ['#CF8E6D', '#d4af37', '#aa7c11', '#ffffff', '#fff7eb'],
+            scalar: 1.2
+          });
+
+          // Right-side burst
+          window.confetti({
+            particleCount: 150,
+            angle: 120,
+            spread: 80,
+            origin: { x: 1, y: 0.8 },
+            colors: ['#CF8E6D', '#d4af37', '#aa7c11', '#ffffff', '#fff7eb'],
+            scalar: 1.2
+          });
+
+          // Center giant blast
+          window.confetti({
+            particleCount: 200,
+            spread: 120,
+            origin: { x: 0.5, y: 0.5 },
+            colors: ['#CF8E6D', '#d4af37', '#aa7c11', '#ffffff', '#fff3cc'],
+            scalar: 1.4
+          });
+        } else {
+          // Standard User Furniture blast
+          window.confetti({
+            particleCount: 120,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#CF8E6D', '#a0683a', '#d4af37', '#ffffff']
+          });
+        }
+      }
+    };
+
+    if (!window.confetti) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+      script.onload = launchConfetti;
+      document.body.appendChild(script);
+    } else {
+      launchConfetti();
+    }
+  };
+
   const handleUserLogin = (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -30,13 +86,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     // Allow admin credentials on user tab for seamless UX
     if (loginId === PRESEEDED_ADMIN.loginId && password === PRESEEDED_ADMIN.password) {
       setSuccessMessage('Welcome, Administrator!');
+      triggerExplosion(true);
       setTimeout(() => {
         onLoginSuccess({
           loginId: PRESEEDED_ADMIN.loginId,
           email: 'admin@assetflow.com',
           role: 'System Administrator'
         });
-      }, 600);
+      }, 1800);
       return;
     }
 
@@ -45,14 +102,16 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     );
 
     if (matchedUser) {
-      setSuccessMessage('Logged in successfully!');
+      const isSystemAdmin = matchedUser.role === 'System Administrator' || matchedUser.role === 'ADMIN';
+      setSuccessMessage(isSystemAdmin ? 'Welcome, Administrator!' : 'Logged in successfully!');
+      triggerExplosion(isSystemAdmin);
       setTimeout(() => {
         onLoginSuccess({
           loginId: matchedUser.loginId,
           email: matchedUser.email,
-          role: 'User'
+          role: matchedUser.role || 'User'
         });
-      }, 600);
+      }, 1800);
     } else {
       setErrorMessage('Invalid Login Id or Password');
     }
@@ -65,13 +124,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
 
     if (loginId === PRESEEDED_ADMIN.loginId && password === PRESEEDED_ADMIN.password) {
       setSuccessMessage('Welcome, Administrator!');
+      triggerExplosion(true);
       setTimeout(() => {
         onLoginSuccess({
           loginId: PRESEEDED_ADMIN.loginId,
           email: 'admin@assetflow.com',
           role: 'System Administrator'
         });
-      }, 600);
+      }, 1800);
     } else {
       setErrorMessage('Invalid Login Id or Password');
     }

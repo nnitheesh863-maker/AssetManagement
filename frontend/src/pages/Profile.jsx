@@ -15,9 +15,22 @@ function Profile({ currentUser, onProfileUpdate }) {
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Read-only fields from currentUser session
+  // Read-only fields
   const email = currentUser.email;
-  const position = currentUser.role === 'System Administrator' ? 'Administrator' : 'Sales Manager';
+
+  // Position is set ONLY by System Administrator — read from users database
+  const getPosition = () => {
+    try {
+      const stored = localStorage.getItem('assetflow_users');
+      if (stored) {
+        const users = JSON.parse(stored);
+        const found = users.find(u => u?.loginId?.toLowerCase() === currentUser.loginId.toLowerCase());
+        if (found && found.position) return found.position;
+      }
+    } catch {}
+    return currentUser.role === 'System Administrator' ? 'System Administrator' : 'Not Assigned';
+  };
+  const position = getPosition();
 
   // Load profile data on mount
   useEffect(() => {
@@ -205,12 +218,12 @@ function Profile({ currentUser, onProfileUpdate }) {
                 />
               </div>
 
-              {/* Position field (Read Only) */}
+              {/* Position field (Set by System Administrator Only) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)' }}>Position</label>
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    🔒 Read-Only
+                    🔒 Set by Admin Only
                   </span>
                 </div>
                 <input
@@ -220,6 +233,11 @@ function Profile({ currentUser, onProfileUpdate }) {
                   className="filter-control-input"
                   style={{ width: '100%', fontSize: '18px', background: 'rgba(0,0,0,0.06)', cursor: 'not-allowed', color: 'var(--text-secondary)' }}
                 />
+                {position === 'Not Assigned' && (
+                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontStyle: 'italic' }}>
+                    ★ Your position will be assigned by the System Administrator.
+                  </span>
+                )}
               </div>
 
             </div>
