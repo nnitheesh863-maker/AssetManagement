@@ -50,21 +50,91 @@ function BOM({ onNavigate }) {
   const [components, setComponents] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
 
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  const syncToBackend = (method, endpoint, bodyObj) => {
+    fetch(`${API_BASE_URL}/${endpoint}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
+  };
+
+  const createAuditLog = (action, bomId) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const logObj = {
+      datetime: formattedDate,
+      user: 'Amit Sharma', // default supervisor/user
+      module: 'BOM',
+      type: 'Bill of Materials',
+      id: bomId,
+      action,
+      field: '-',
+      oldVal: '-',
+      newVal: '-'
+    };
+    
+    syncToBackend('POST', 'audit-logs', {
+      datetime: logObj.datetime,
+      user: logObj.user,
+      module: logObj.module,
+      type: logObj.type,
+      record_id: logObj.id,
+      action: logObj.action,
+      field: logObj.field,
+      old_val: logObj.oldVal,
+      new_val: logObj.newVal
+    });
+  };
+
   // Initial load
   useEffect(() => {
-    // Load dynamic products from localStorage
-    const savedProducts = localStorage.getItem('assetflow_products');
-    if (savedProducts) {
-      const parsed = JSON.parse(savedProducts);
-      if (parsed.length > 0) {
-        setProductList(parsed.map(p => p.name));
+    const fetchProductsAndBoms = async () => {
+      // Load products
+      try {
+        const prodRes = await fetch(`${API_BASE_URL}/products`);
+        if (prodRes.ok) {
+          const prodData = await prodRes.json();
+          if (prodData.length > 0) {
+            setProductList(prodData.map(p => p.name));
+          } else {
+            const savedProducts = localStorage.getItem('assetflow_products');
+            if (savedProducts) {
+              const parsed = JSON.parse(savedProducts);
+              if (parsed.length > 0) setProductList(parsed.map(p => p.name));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch products for BOM list, using localStorage.", err);
+        const savedProducts = localStorage.getItem('assetflow_products');
+        if (savedProducts) {
+          const parsed = JSON.parse(savedProducts);
+          if (parsed.length > 0) setProductList(parsed.map(p => p.name));
+        }
       }
-    }
 
-    const saved = localStorage.getItem('assetflow_boms');
-    if (saved) {
-      setBoms(JSON.parse(saved));
-    } else {
+      // Load BOMs
+      try {
+        const bomRes = await fetch(`${API_BASE_URL}/boms`);
+        if (bomRes.ok) {
+          const bomData = await bomRes.json();
+          if (bomData.length > 0) {
+            setBoms(bomData);
+            localStorage.setItem('assetflow_boms', JSON.stringify(bomData));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch BOMs from backend, using localStorage.", err);
+      }
+
+      const saved = localStorage.getItem('assetflow_boms');
+      if (saved) {
+        setBoms(JSON.parse(saved));
+      } else {
       const initial = [
         {
           id: 'BOM-000001',
@@ -100,7 +170,10 @@ function BOM({ onNavigate }) {
       setBoms(initial);
       localStorage.setItem('assetflow_boms', JSON.stringify(initial));
     }
-  }, []);
+  };
+
+  fetchProductsAndBoms();
+}, []);
 
   const saveBoms = (updatedList) => {
     setBoms(updatedList);
@@ -152,7 +225,7 @@ function BOM({ onNavigate }) {
       // Edit
       const updated = boms.map(b => {
         if (b.id === selectedBom.id) {
-          return {
+          const updatedObj = {
             ...b,
             product: finishedProduct,
             qty: quantity,
@@ -160,6 +233,19 @@ function BOM({ onNavigate }) {
             components,
             workOrders
           };
+
+          const backendObj = {
+            id: updatedObj.id,
+            reference: updatedObj.reference,
+            product: updatedObj.product,
+            qty: updatedObj.qty,
+            unit: updatedObj.unit,
+            components: updatedObj.components,
+            work_orders: updatedObj.workOrders
+          };
+          syncToBackend('PUT', `boms/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated', updatedObj.id);
+          return updatedObj;
         }
         return b;
       });
@@ -177,6 +263,18 @@ function BOM({ onNavigate }) {
         components,
         workOrders
       };
+
+      const backendObj = {
+        id: newBom.id,
+        reference: newBom.reference,
+        product: newBom.product,
+        qty: newBom.qty,
+        unit: newBom.unit,
+        components: newBom.components,
+        work_orders: newBom.workOrders
+      };
+      syncToBackend('POST', 'boms', backendObj);
+      createAuditLog('Created', newBom.id);
       saveBoms([...boms, newBom]);
     }
     setActiveView('list');

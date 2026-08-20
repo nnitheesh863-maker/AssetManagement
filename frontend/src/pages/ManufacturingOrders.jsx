@@ -46,60 +46,143 @@ function ManufacturingOrders({ onNavigate }) {
   const [activeTimerId, setActiveTimerId] = useState(null);
   const [timerIntervalId, setTimerIntervalId] = useState(null);
 
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  const syncToBackend = (method, endpoint, bodyObj) => {
+    fetch(`${API_BASE_URL}/${endpoint}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
+  };
+
+  const createAuditLog = (action, orderId) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const logObj = {
+      datetime: formattedDate,
+      user: assignee || 'Amit Sharma',
+      module: 'Manufacturing',
+      type: 'Manufacturing Order',
+      id: orderId,
+      action,
+      field: '-',
+      oldVal: '-',
+      newVal: '-'
+    };
+    
+    syncToBackend('POST', 'audit-logs', {
+      datetime: logObj.datetime,
+      user: logObj.user,
+      module: logObj.module,
+      type: logObj.type,
+      record_id: logObj.id,
+      action: logObj.action,
+      field: logObj.field,
+      old_val: logObj.oldVal,
+      new_val: logObj.newVal
+    });
+  };
+
   // Load orders and BOMs on mount
   useEffect(() => {
-    // Load BOMs
-    const savedBoms = localStorage.getItem('assetflow_boms');
-    if (savedBoms) {
-      setBoms(JSON.parse(savedBoms));
-    }
-
-    // Load Mfg Orders
-    const savedOrders = localStorage.getItem('assetflow_manufacturing_orders');
-    if (savedOrders) {
-      setMfgOrders(JSON.parse(savedOrders));
-    } else {
-      const initial = [
-        {
-          id: 'MO-000001',
-          bomId: 'BOM-000001',
-          product: 'Door Frames',
-          qty: 10.0,
-          unit: 'Units',
-          workCenter: 'Pre-Production',
-          date: '2026-08-20',
-          owner: 'Amit Sharma',
-          status: 'Confirmed',
-          components: [
-            { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
-            { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
-          ],
-          workOrders: [
-            { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
-            { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
-          ]
-        },
-        {
-          id: 'MO-000002',
-          bomId: '',
-          product: 'Lighting Frame',
-          qty: 5.0,
-          unit: 'Units',
-          workCenter: 'Assembly Line',
-          date: '2026-08-19',
-          owner: 'Neha Verma',
-          status: 'Draft',
-          components: [
-            { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
-          ],
-          workOrders: [
-            { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
-          ]
+    const fetchBomsAndOrders = async () => {
+      // Load BOMs
+      try {
+        const bomRes = await fetch(`${API_BASE_URL}/boms`);
+        if (bomRes.ok) {
+          const bomData = await bomRes.json();
+          if (bomData.length > 0) {
+            setBoms(bomData);
+            localStorage.setItem('assetflow_boms', JSON.stringify(bomData));
+          } else {
+            const savedBoms = localStorage.getItem('assetflow_boms');
+            if (savedBoms) setBoms(JSON.parse(savedBoms));
+          }
         }
-      ];
-      setMfgOrders(initial);
-      localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(initial));
-    }
+      } catch (err) {
+        console.warn("Failed to fetch BOMs from backend, using localStorage.", err);
+        const savedBoms = localStorage.getItem('assetflow_boms');
+        if (savedBoms) setBoms(JSON.parse(savedBoms));
+      }
+
+      // Load Mfg Orders
+      try {
+        const orderRes = await fetch(`${API_BASE_URL}/manufacturing-orders`);
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          if (orderData.length > 0) {
+            const formatted = orderData.map(r => ({
+              id: r.id,
+              bomId: r.bom || '',
+              product: r.product,
+              qty: r.qty,
+              unit: r.units || 'Units',
+              workCenter: r.workCenter || (r.operations?.[0]?.workCenter || 'Assembly Line'),
+              date: r.date,
+              owner: r.assignee,
+              status: r.status,
+              components: r.components,
+              workOrders: r.operations
+            }));
+            setMfgOrders(formatted);
+            localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(formatted));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch Manufacturing Orders from backend, using localStorage.", err);
+      }
+
+      const savedOrders = localStorage.getItem('assetflow_manufacturing_orders');
+      if (savedOrders) {
+        setMfgOrders(JSON.parse(savedOrders));
+      } else {
+        const initial = [
+          {
+            id: 'MO-000001',
+            bomId: 'BOM-000001',
+            product: 'Door Frames',
+            qty: 10.0,
+            unit: 'Units',
+            workCenter: 'Pre-Production',
+            date: '2026-08-20',
+            owner: 'Amit Sharma',
+            status: 'Confirmed',
+            components: [
+              { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
+              { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
+            ],
+            workOrders: [
+              { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
+              { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
+            ]
+          },
+          {
+            id: 'MO-000002',
+            bomId: '',
+            product: 'Lighting Frame',
+            qty: 5.0,
+            unit: 'Units',
+            workCenter: 'Assembly Line',
+            date: '2026-08-19',
+            owner: 'Neha Verma',
+            status: 'Draft',
+            components: [
+              { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
+            ],
+            workOrders: [
+              { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
+            ]
+          }
+        ];
+        setMfgOrders(initial);
+        localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(initial));
+      }
+    };
+
+    fetchBomsAndOrders();
   }, []);
 
   // Timer clean up
@@ -213,7 +296,7 @@ function ManufacturingOrders({ onNavigate }) {
       // Edit existing
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return {
+          const updatedObj = {
             ...o,
             bomId: selectedBomId,
             product: finishedProduct,
@@ -225,6 +308,22 @@ function ManufacturingOrders({ onNavigate }) {
             components,
             workOrders: operations
           };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            product: updatedObj.product,
+            bom: updatedObj.bomId,
+            qty: updatedObj.qty,
+            units: updatedObj.unit,
+            assignee: updatedObj.owner,
+            status: updatedObj.status,
+            components: updatedObj.components,
+            operations: updatedObj.workOrders
+          };
+          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -246,6 +345,21 @@ function ManufacturingOrders({ onNavigate }) {
         components,
         workOrders: operations
       };
+
+      const backendObj = {
+        id: newOrder.id,
+        date: newOrder.date,
+        product: newOrder.product,
+        bom: newOrder.bomId,
+        qty: newOrder.qty,
+        units: newOrder.unit,
+        assignee: newOrder.owner,
+        status: newOrder.status,
+        components: newOrder.components,
+        operations: newOrder.workOrders
+      };
+      syncToBackend('POST', 'manufacturing-orders', backendObj);
+      createAuditLog('Created', newOrder.id);
       saveOrders([...mfgOrders, newOrder]);
     }
 
@@ -259,7 +373,23 @@ function ManufacturingOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Confirmed' };
+          const updatedObj = { ...o, status: 'Confirmed' };
+          
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            product: updatedObj.product,
+            bom: updatedObj.bomId,
+            qty: updatedObj.qty,
+            units: updatedObj.unit,
+            assignee: updatedObj.owner,
+            status: updatedObj.status,
+            components: updatedObj.components,
+            operations: updatedObj.workOrders
+          };
+          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Confirmed', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -272,7 +402,23 @@ function ManufacturingOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'In Progress' };
+          const updatedObj = { ...o, status: 'In Progress' };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            product: updatedObj.product,
+            bom: updatedObj.bomId,
+            qty: updatedObj.qty,
+            units: updatedObj.unit,
+            assignee: updatedObj.owner,
+            status: updatedObj.status,
+            components: updatedObj.components,
+            operations: updatedObj.workOrders
+          };
+          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Started Production', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -286,7 +432,23 @@ function ManufacturingOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Done' };
+          const updatedObj = { ...o, status: 'Done' };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            product: updatedObj.product,
+            bom: updatedObj.bomId,
+            qty: updatedObj.qty,
+            units: updatedObj.unit,
+            assignee: updatedObj.owner,
+            status: updatedObj.status,
+            components: updatedObj.components,
+            operations: updatedObj.workOrders
+          };
+          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Marked as Done', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -300,7 +462,23 @@ function ManufacturingOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Cancelled' };
+          const updatedObj = { ...o, status: 'Cancelled' };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            product: updatedObj.product,
+            bom: updatedObj.bomId,
+            qty: updatedObj.qty,
+            units: updatedObj.unit,
+            assignee: updatedObj.owner,
+            status: updatedObj.status,
+            components: updatedObj.components,
+            operations: updatedObj.workOrders
+          };
+          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Cancelled', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });

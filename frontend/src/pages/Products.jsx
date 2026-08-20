@@ -24,26 +24,83 @@ function Products() {
   const [salesPrice, setSalesPrice] = useState(100);
   const [costPrice, setCostPrice] = useState(60);
 
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  const syncToBackend = (method, endpoint, bodyObj) => {
+    fetch(`${API_BASE_URL}/${endpoint}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
+  };
+
+  const createAuditLog = (action, prodId) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const logObj = {
+      datetime: formattedDate,
+      user: 'Amit Sharma', // default supervisor/user
+      module: 'Products',
+      type: 'Product Item',
+      id: prodId,
+      action,
+      field: '-',
+      oldVal: '-',
+      newVal: '-'
+    };
+    
+    syncToBackend('POST', 'audit-logs', {
+      datetime: logObj.datetime,
+      user: logObj.user,
+      module: logObj.module,
+      type: logObj.type,
+      record_id: logObj.id,
+      action: logObj.action,
+      field: logObj.field,
+      old_val: logObj.oldVal,
+      new_val: logObj.newVal
+    });
+  };
+
   // Load products on mount
   useEffect(() => {
-    const saved = localStorage.getItem('assetflow_products');
-    if (saved) {
-      setProducts(JSON.parse(saved));
-    } else {
-      const initial = [
-        { id: 'PROD-001', name: 'Deluxe Oak Dining Table', category: 'Custom Dining', salesPrice: 1200, costPrice: 800 },
-        { id: 'PROD-002', name: 'Ash Wood Chair Pack', category: 'Dining Room', salesPrice: 380, costPrice: 250 },
-        { id: 'PROD-003', name: 'Beech Wood Bedframe', category: 'Bedroom Series', salesPrice: 1100, costPrice: 750 },
-        { id: 'PROD-004', name: 'Cedar Garden Table', category: 'Patio Series', salesPrice: 720, costPrice: 480 },
-        { id: 'PROD-005', name: 'Cherry Wood Bookshelf', category: 'Living Room', salesPrice: 950, costPrice: 620 },
-        { id: 'PROD-006', name: 'Birch Coffee Table', category: 'Living Room', salesPrice: 410, costPrice: 270 },
-        { id: 'PROD-007', name: 'Walnut Sideboard', category: 'Custom Dining', salesPrice: 1500, costPrice: 1000 },
-        { id: 'PROD-008', name: 'Door Frames', category: 'Pre-Production', salesPrice: 150, costPrice: 90 },
-        { id: 'PROD-009', name: 'Lighting Frame', category: 'Assembly Line', salesPrice: 200, costPrice: 120 }
-      ];
-      setProducts(initial);
-      localStorage.setItem('assetflow_products', JSON.stringify(initial));
-    }
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/products`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            setProducts(data);
+            localStorage.setItem('assetflow_products', JSON.stringify(data));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Failed to fetch products from backend, using localStorage.", err);
+      }
+
+      const saved = localStorage.getItem('assetflow_products');
+      if (saved) {
+        setProducts(JSON.parse(saved));
+      } else {
+        const initial = [
+          { id: 'PROD-001', name: 'Deluxe Oak Dining Table', category: 'Custom Dining', salesPrice: 1200, costPrice: 800 },
+          { id: 'PROD-002', name: 'Ash Wood Chair Pack', category: 'Dining Room', salesPrice: 380, costPrice: 250 },
+          { id: 'PROD-003', name: 'Beech Wood Bedframe', category: 'Bedroom Series', salesPrice: 1100, costPrice: 750 },
+          { id: 'PROD-004', name: 'Cedar Garden Table', category: 'Patio Series', salesPrice: 720, costPrice: 480 },
+          { id: 'PROD-005', name: 'Cherry Wood Bookshelf', category: 'Living Room', salesPrice: 950, costPrice: 620 },
+          { id: 'PROD-006', name: 'Birch Coffee Table', category: 'Living Room', salesPrice: 410, costPrice: 270 },
+          { id: 'PROD-007', name: 'Walnut Sideboard', category: 'Custom Dining', salesPrice: 1500, costPrice: 1000 },
+          { id: 'PROD-008', name: 'Door Frames', category: 'Pre-Production', salesPrice: 150, costPrice: 90 },
+          { id: 'PROD-009', name: 'Lighting Frame', category: 'Assembly Line', salesPrice: 200, costPrice: 120 }
+        ];
+        setProducts(initial);
+        localStorage.setItem('assetflow_products', JSON.stringify(initial));
+      }
+    };
+
+    fetchProducts();
   }, []);
 
   const saveProducts = (updatedList) => {
@@ -83,13 +140,24 @@ function Products() {
       // Edit
       const updated = products.map(p => {
         if (p.id === selectedProduct.id) {
-          return {
+          const updatedObj = {
             ...p,
             name,
             category,
             salesPrice: parseFloat(salesPrice) || 0,
             costPrice: parseFloat(costPrice) || 0
           };
+
+          const backendObj = {
+            id: updatedObj.id,
+            name: updatedObj.name,
+            category: updatedObj.category,
+            salesPrice: updatedObj.salesPrice,
+            costPrice: updatedObj.costPrice
+          };
+          syncToBackend('PUT', `products/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated', updatedObj.id);
+          return updatedObj;
         }
         return p;
       });
@@ -105,6 +173,16 @@ function Products() {
         salesPrice: parseFloat(salesPrice) || 0,
         costPrice: parseFloat(costPrice) || 0
       };
+
+      const backendObj = {
+        id: newProd.id,
+        name: newProd.name,
+        category: newProd.category,
+        salesPrice: newProd.salesPrice,
+        costPrice: newProd.costPrice
+      };
+      syncToBackend('POST', 'products', backendObj);
+      createAuditLog('Created', newProd.id);
       saveProducts([...products, newProd]);
     }
     setActiveView('list');

@@ -31,28 +31,100 @@ function SalesOrders({ onNavigate }) {
   const [orderStatus, setOrderStatus] = useState('Draft');
   const [orderDate, setOrderDate] = useState('');
 
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  const syncToBackend = (method, endpoint, bodyObj) => {
+    fetch(`${API_BASE_URL}/${endpoint}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
+  };
+
+  const createAuditLog = (action, orderId) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const logObj = {
+      datetime: formattedDate,
+      user: salesperson || 'Amit Sharma',
+      module: 'Sales',
+      type: 'Sales Order',
+      id: orderId,
+      action,
+      field: '-',
+      oldVal: '-',
+      newVal: '-'
+    };
+    
+    syncToBackend('POST', 'audit-logs', {
+      datetime: logObj.datetime,
+      user: logObj.user,
+      module: logObj.module,
+      type: logObj.type,
+      record_id: logObj.id,
+      action: logObj.action,
+      field: logObj.field,
+      old_val: logObj.oldVal,
+      new_val: logObj.newVal
+    });
+  };
+
   // Load orders on mount
   useEffect(() => {
-    const saved = localStorage.getItem('assetflow_sales_orders');
-    if (saved) {
-      setSalesOrders(JSON.parse(saved));
-    } else {
-      // Map initial mock data to our structural format
-      const initial = mockDashboardData.salesOrders.map(o => ({
-        id: o.id,
-        date: o.date,
-        customer: o.owner === 'admin123' ? 'System Administrator Client' : 'Mahesh Gupta Furniture',
-        address: 'Colaba, Mumbai, 400001',
-        salesperson: 'Amit Sharma',
-        product: o.name,
-        price: parseInt(o.amount.replace(/[^0-9]/g, '')) || 850,
-        qty: 1,
-        delivered: o.status === 'Delivered' ? 1 : 0,
-        status: o.status // 'Draft' | 'Confirmed' | 'Partially Delivered' | 'Delivered' | 'Cancelled'
-      }));
-      setSalesOrders(initial);
-      localStorage.setItem('assetflow_sales_orders', JSON.stringify(initial));
-    }
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/sales-orders`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            const formatted = data.map(b => {
+              const item = b.items[0] || {};
+              return {
+                id: b.id,
+                date: b.date,
+                customer: b.customer,
+                address: item.address || 'Colaba, Mumbai, 400001',
+                salesperson: b.salesperson,
+                product: item.product || '',
+                price: item.price || 0,
+                qty: item.qty || 1,
+                delivered: item.delivered || 0,
+                status: b.status,
+                owner: b.owner || ''
+              };
+            });
+            setSalesOrders(formatted);
+            localStorage.setItem('assetflow_sales_orders', JSON.stringify(formatted));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Backend server not reachable. Using localStorage.", err);
+      }
+
+      const saved = localStorage.getItem('assetflow_sales_orders');
+      if (saved) {
+        setSalesOrders(JSON.parse(saved));
+      } else {
+        const initial = mockDashboardData.salesOrders.map(o => ({
+          id: o.id,
+          date: o.date,
+          customer: o.owner === 'admin123' ? 'System Administrator Client' : 'Mahesh Gupta Furniture',
+          address: 'Colaba, Mumbai, 400001',
+          salesperson: 'Amit Sharma',
+          product: o.name,
+          price: parseInt(o.amount.replace(/[^0-9]/g, '')) || 850,
+          qty: 1,
+          delivered: o.status === 'Delivered' ? 1 : 0,
+          status: o.status
+        }));
+        setSalesOrders(initial);
+        localStorage.setItem('assetflow_sales_orders', JSON.stringify(initial));
+      }
+    };
+
+    fetchOrders();
   }, []);
 
   // Sync to local storage
@@ -105,7 +177,7 @@ function SalesOrders({ onNavigate }) {
       // Edit existing
       const updated = salesOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return {
+          const updatedObj = {
             ...o,
             customer: customerName,
             address: customerAddress,
@@ -116,6 +188,26 @@ function SalesOrders({ onNavigate }) {
             price,
             status: orderStatus
           };
+          
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            customer: updatedObj.customer,
+            status: updatedObj.status,
+            salesperson: updatedObj.salesperson,
+            items: [{
+              product: updatedObj.product,
+              price: updatedObj.price,
+              qty: updatedObj.qty,
+              delivered: updatedObj.delivered,
+              address: updatedObj.address
+            }],
+            total: (updatedObj.status === 'Delivered' || updatedObj.status === 'Partially Delivered' ? updatedObj.delivered : updatedObj.qty) * updatedObj.price,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `sales-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -135,6 +227,25 @@ function SalesOrders({ onNavigate }) {
         price,
         status: 'Draft'
       };
+
+      const backendObj = {
+        id: newOrder.id,
+        date: newOrder.date,
+        customer: newOrder.customer,
+        status: newOrder.status,
+        salesperson: newOrder.salesperson,
+        items: [{
+          product: newOrder.product,
+          price: newOrder.price,
+          qty: newOrder.qty,
+          delivered: newOrder.delivered,
+          address: newOrder.address
+        }],
+        total: newOrder.qty * newOrder.price,
+        owner: ''
+      };
+      syncToBackend('POST', 'sales-orders', backendObj);
+      createAuditLog('Created', newOrder.id);
       saveOrders([...salesOrders, newOrder]);
     }
 
@@ -147,7 +258,27 @@ function SalesOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = salesOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Confirmed' };
+          const updatedObj = { ...o, status: 'Confirmed' };
+          
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            customer: updatedObj.customer,
+            status: updatedObj.status,
+            salesperson: updatedObj.salesperson,
+            items: [{
+              product: updatedObj.product,
+              price: updatedObj.price,
+              qty: updatedObj.qty,
+              delivered: updatedObj.delivered,
+              address: updatedObj.address
+            }],
+            total: (updatedObj.status === 'Delivered' || updatedObj.status === 'Partially Delivered' ? updatedObj.delivered : updatedObj.qty) * updatedObj.price,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `sales-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Confirmed', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -165,7 +296,27 @@ function SalesOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = salesOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: nextStatus, delivered: deliveredQty };
+          const updatedObj = { ...o, status: nextStatus, delivered: deliveredQty };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            customer: updatedObj.customer,
+            status: updatedObj.status,
+            salesperson: updatedObj.salesperson,
+            items: [{
+              product: updatedObj.product,
+              price: updatedObj.price,
+              qty: updatedObj.qty,
+              delivered: updatedObj.delivered,
+              address: updatedObj.address
+            }],
+            total: (updatedObj.status === 'Delivered' || updatedObj.status === 'Partially Delivered' ? updatedObj.delivered : updatedObj.qty) * updatedObj.price,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `sales-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated Delivery', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -178,7 +329,27 @@ function SalesOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = salesOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Cancelled' };
+          const updatedObj = { ...o, status: 'Cancelled' };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            customer: updatedObj.customer,
+            status: updatedObj.status,
+            salesperson: updatedObj.salesperson,
+            items: [{
+              product: updatedObj.product,
+              price: updatedObj.price,
+              qty: updatedObj.qty,
+              delivered: updatedObj.delivered,
+              address: updatedObj.address
+            }],
+            total: (updatedObj.status === 'Delivered' || updatedObj.status === 'Partially Delivered' ? updatedObj.delivered : updatedObj.qty) * updatedObj.price,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `sales-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Cancelled', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });

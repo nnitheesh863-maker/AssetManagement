@@ -32,28 +32,97 @@ function PurchaseOrders({ onNavigate }) {
   const [orderStatus, setOrderStatus] = useState('Draft');
   const [orderDate, setOrderDate] = useState('');
 
+  const API_BASE_URL = 'http://localhost:5000/api';
+
+  const syncToBackend = (method, endpoint, bodyObj) => {
+    fetch(`${API_BASE_URL}/${endpoint}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bodyObj)
+    }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
+  };
+
+  const createAuditLog = (action, orderId) => {
+    const today = new Date();
+    const formattedDate = today.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+    
+    const logObj = {
+      datetime: formattedDate,
+      user: responsiblePerson || 'Amit Sharma',
+      module: 'Purchase',
+      type: 'Purchase Order',
+      id: orderId,
+      action,
+      field: '-',
+      oldVal: '-',
+      newVal: '-'
+    };
+    
+    syncToBackend('POST', 'audit-logs', {
+      datetime: logObj.datetime,
+      user: logObj.user,
+      module: logObj.module,
+      type: logObj.type,
+      record_id: logObj.id,
+      action: logObj.action,
+      field: logObj.field,
+      old_val: logObj.oldVal,
+      new_val: logObj.newVal
+    });
+  };
+
   // Load orders on mount
   useEffect(() => {
-    const saved = localStorage.getItem('assetflow_purchase_orders');
-    if (saved) {
-      setPurchaseOrders(JSON.parse(saved));
-    } else {
-      // Map initial mock data to our structural format
-      const initial = mockDashboardData.purchaseOrders.map(o => ({
-        id: o.id,
-        date: o.date,
-        vendor: VENDOR_LIST[0],
-        address: 'Goregaon East, Mumbai, 400063',
-        agent: o.owner,
-        product: o.name,
-        price: parseInt(o.amount.replace(/[^0-9]/g, '')) || 120,
-        qty: 10,
-        received: o.status === 'Received' ? 10 : 0,
-        status: o.status === 'Received' ? 'Fully Received' : o.status // Normalize received label
-      }));
-      setPurchaseOrders(initial);
-      localStorage.setItem('assetflow_purchase_orders', JSON.stringify(initial));
-    }
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/purchase-orders`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            const formatted = data.map(r => ({
+              id: r.id,
+              date: r.date,
+              vendor: r.vendor,
+              address: r.address,
+              agent: r.responsible,
+              product: r.item,
+              price: SUPPLY_PRICES[r.item] || 100,
+              qty: r.qty,
+              received: r.received,
+              status: r.status,
+              owner: r.owner || ''
+            }));
+            setPurchaseOrders(formatted);
+            localStorage.setItem('assetflow_purchase_orders', JSON.stringify(formatted));
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Backend server not reachable. Using localStorage.", err);
+      }
+
+      const saved = localStorage.getItem('assetflow_purchase_orders');
+      if (saved) {
+        setPurchaseOrders(JSON.parse(saved));
+      } else {
+        const initial = mockDashboardData.purchaseOrders.map(o => ({
+          id: o.id,
+          date: o.date,
+          vendor: VENDOR_LIST[0],
+          address: 'Goregaon East, Mumbai, 400063',
+          agent: o.owner,
+          product: o.name,
+          price: parseInt(o.amount.replace(/[^0-9]/g, '')) || 120,
+          qty: 10,
+          received: o.status === 'Received' ? 10 : 0,
+          status: o.status === 'Received' ? 'Fully Received' : o.status
+        }));
+        setPurchaseOrders(initial);
+        localStorage.setItem('assetflow_purchase_orders', JSON.stringify(initial));
+      }
+    };
+
+    fetchOrders();
   }, []);
 
   // Sync to local storage
@@ -106,7 +175,7 @@ function PurchaseOrders({ onNavigate }) {
       // Edit existing
       const updated = purchaseOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return {
+          const updatedObj = {
             ...o,
             vendor: vendorName,
             address: vendorAddress,
@@ -117,6 +186,22 @@ function PurchaseOrders({ onNavigate }) {
             price,
             status: orderStatus
           };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            vendor: updatedObj.vendor,
+            address: updatedObj.address,
+            responsible: updatedObj.agent,
+            item: updatedObj.product,
+            qty: updatedObj.qty,
+            received: updatedObj.received,
+            status: updatedObj.status,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `purchase-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -136,6 +221,21 @@ function PurchaseOrders({ onNavigate }) {
         price,
         status: 'Draft'
       };
+
+      const backendObj = {
+        id: newOrder.id,
+        date: newOrder.date,
+        vendor: newOrder.vendor,
+        address: newOrder.address,
+        responsible: newOrder.agent,
+        item: newOrder.product,
+        qty: newOrder.qty,
+        received: newOrder.received,
+        status: newOrder.status,
+        owner: ''
+      };
+      syncToBackend('POST', 'purchase-orders', backendObj);
+      createAuditLog('Created', newOrder.id);
       saveOrders([...purchaseOrders, newOrder]);
     }
 
@@ -148,7 +248,23 @@ function PurchaseOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = purchaseOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Confirmed' };
+          const updatedObj = { ...o, status: 'Confirmed' };
+          
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            vendor: updatedObj.vendor,
+            address: updatedObj.address,
+            responsible: updatedObj.agent,
+            item: updatedObj.product,
+            qty: updatedObj.qty,
+            received: updatedObj.received,
+            status: updatedObj.status,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `purchase-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Confirmed', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -166,7 +282,23 @@ function PurchaseOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = purchaseOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: nextStatus, received: receivedQty };
+          const updatedObj = { ...o, status: nextStatus, received: receivedQty };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            vendor: updatedObj.vendor,
+            address: updatedObj.address,
+            responsible: updatedObj.agent,
+            item: updatedObj.product,
+            qty: updatedObj.qty,
+            received: updatedObj.received,
+            status: updatedObj.status,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `purchase-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Updated Delivery', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
@@ -179,7 +311,23 @@ function PurchaseOrders({ onNavigate }) {
     if (selectedOrder) {
       const updated = purchaseOrders.map(o => {
         if (o.id === selectedOrder.id) {
-          return { ...o, status: 'Cancelled' };
+          const updatedObj = { ...o, status: 'Cancelled' };
+
+          const backendObj = {
+            id: updatedObj.id,
+            date: updatedObj.date,
+            vendor: updatedObj.vendor,
+            address: updatedObj.address,
+            responsible: updatedObj.agent,
+            item: updatedObj.product,
+            qty: updatedObj.qty,
+            received: updatedObj.received,
+            status: updatedObj.status,
+            owner: updatedObj.owner || ''
+          };
+          syncToBackend('PUT', `purchase-orders/${updatedObj.id}`, backendObj);
+          createAuditLog('Cancelled', updatedObj.id);
+          return updatedObj;
         }
         return o;
       });
