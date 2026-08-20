@@ -78,6 +78,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     }
   };
 
+  // Helper: get the latest users list from localStorage (includes admins created via AdminDashboard)
+  const getFreshUsers = () => {
+    try {
+      const stored = localStorage.getItem('assetflow_users');
+      return stored ? JSON.parse(stored) : users;
+    } catch { return users; }
+  };
+
   const handleUserLogin = (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -97,7 +105,8 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
       return;
     }
 
-    const matchedUser = users.find(
+    const allUsers = getFreshUsers();
+    const matchedUser = allUsers.find(
       (u) => u.loginId === loginId && u.password === password
     );
 
@@ -122,6 +131,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     setErrorMessage('');
     setSuccessMessage('');
 
+    // Check hardcoded admin first
     if (loginId === PRESEEDED_ADMIN.loginId && password === PRESEEDED_ADMIN.password) {
       setSuccessMessage('Welcome, Administrator!');
       triggerExplosion(true);
@@ -132,8 +142,28 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
           role: 'System Administrator'
         });
       }, 1800);
+      return;
+    }
+
+    // Check created admin accounts from localStorage (fresh read)
+    const allUsers = getFreshUsers();
+    const matchedAdmin = allUsers.find(
+      (u) => u.loginId === loginId && u.password === password &&
+             (u.role === 'System Administrator' || u.role === 'ADMIN')
+    );
+
+    if (matchedAdmin) {
+      setSuccessMessage('Welcome, Administrator!');
+      triggerExplosion(true);
+      setTimeout(() => {
+        onLoginSuccess({
+          loginId: matchedAdmin.loginId,
+          email: matchedAdmin.email,
+          role: 'System Administrator'
+        });
+      }, 1800);
     } else {
-      setErrorMessage('Invalid Login Id or Password');
+      setErrorMessage('Invalid Admin Login Id or Password');
     }
   };
 

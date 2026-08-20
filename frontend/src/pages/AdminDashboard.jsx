@@ -81,7 +81,7 @@ function PermCell({ val }) {
 /* ══════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════ */
-export default function AdminDashboard({ currentUser }) {
+export default function AdminDashboard({ currentUser, openAdminCreation }) {
   // State
   const [usersList, setUsersList]         = useState([]);
   const [searchTerm, setSearchTerm]       = useState('');
@@ -97,6 +97,17 @@ export default function AdminDashboard({ currentUser }) {
   const [form, setForm]           = useState({ loginId:'', name:'', email:'', mobile:'', address:'', password:'', role:'User', position:'' });
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Admin creation modal
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [adminForm, setAdminForm] = useState({ loginId: '', password: '', confirmPassword: '' });
+  const [adminFormError, setAdminFormError] = useState('');
+  const [adminFormSuccess, setAdminFormSuccess] = useState('');
+
+  // Auto-open admin creation modal if navigated from sidebar
+  useEffect(() => {
+    if (openAdminCreation) setIsAdminModalOpen(true);
+  }, [openAdminCreation]);
 
   /* ── Load users ── */
   useEffect(() => {
@@ -215,6 +226,33 @@ export default function AdminDashboard({ currentUser }) {
     setTimeout(() => { setIsAddModalOpen(false); setForm({ loginId:'', name:'', email:'', mobile:'', address:'', password:'', role:'User', position:'' }); setFormSuccess(''); }, 900);
   };
 
+  const handleCreateAdmin = (e) => {
+    e.preventDefault(); setAdminFormError(''); setAdminFormSuccess('');
+    if (!adminForm.loginId || !adminForm.password) { setAdminFormError('Login ID and Password are required.'); return; }
+    if (adminForm.loginId.length < 4) { setAdminFormError('Login ID must be at least 4 characters.'); return; }
+    if (adminForm.password.length < 6) { setAdminFormError('Password must be at least 6 characters.'); return; }
+    if (adminForm.password !== adminForm.confirmPassword) { setAdminFormError('Passwords do not match.'); return; }
+    if (usersList.some(u => u?.loginId?.toLowerCase() === adminForm.loginId.toLowerCase())) { setAdminFormError('Login ID already exists.'); return; }
+    const newAdmin = {
+      loginId: adminForm.loginId,
+      name: 'Admin - ' + adminForm.loginId,
+      email: adminForm.loginId + '@assetflow.com',
+      password: adminForm.password,
+      role: 'System Administrator',
+      position: 'System Administrator',
+      mobile: '',
+      address: '',
+    };
+    const updated = [newAdmin, ...usersList];
+    setUsersList(updated);
+    localStorage.setItem('assetflow_users', JSON.stringify(updated));
+    setAdminFormSuccess('Admin account "' + adminForm.loginId + '" created successfully!');
+    triggerConfettiBlast();
+    setTimeout(() => { setIsAdminModalOpen(false); setAdminForm({ loginId:'', password:'', confirmPassword:'' }); setAdminFormSuccess(''); }, 1200);
+  };
+
+  const aff = (key) => (e) => setAdminForm(f => ({ ...f, [key]: e.target.value }));
+
   const getUserPhoto = (id) => {
     try { const s = localStorage.getItem('assetflow_profile_' + id); return s ? JSON.parse(s).photo || '' : ''; }
     catch { return ''; }
@@ -251,6 +289,7 @@ export default function AdminDashboard({ currentUser }) {
             </svg>
             Settings
           </button>
+
           {/* Add User */}
           <button onClick={() => setIsAddModalOpen(true)}
             style={{ display:'flex', alignItems:'center', gap:'6px', padding:'7px 16px', borderRadius:'10px', border:'none', background:'linear-gradient(135deg,#CF8E6D,#a0683a)', cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#fff', boxShadow:'0 3px 12px rgba(207,142,109,0.35)' }}>
@@ -320,10 +359,7 @@ export default function AdminDashboard({ currentUser }) {
                     <div style={{ fontSize:'13px', fontWeight:'600', color:'var(--text-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.name || u.loginId}</div>
                     <div style={{ fontSize:'11px', color: isAdmin ? '#CF8E6D' : 'var(--text-secondary)', marginTop:'1px' }}>{isAdmin ? '⭐ Admin' : (u.position || 'User')}</div>
                   </div>
-                  <button onClick={ev => { ev.stopPropagation(); deleteUser(u.loginId); }} title="Delete"
-                    style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(166,94,85,0.35)', padding:'3px', borderRadius:'6px' }}>
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{width:'13px',height:'13px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+
                 </div>
               );
             })}
@@ -492,6 +528,51 @@ export default function AdminDashboard({ currentUser }) {
               <button type="submit"
                 style={{ marginTop:'4px', height:'44px', borderRadius:'12px', border:'none', background:'linear-gradient(135deg,#CF8E6D,#a0683a)', color:'#fff', fontWeight:'800', fontSize:'14px', cursor:'pointer', letterSpacing:'0.06em', boxShadow:'0 6px 20px rgba(207,142,109,0.35)' }}>
                 REGISTER USER
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════ CREATE ADMIN MODAL ══════════ */}
+      {isAdminModalOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(40,28,20,0.55)', backdropFilter:'blur(10px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:2000 }}
+          onClick={() => setIsAdminModalOpen(false)}>
+          <div style={{ background:'rgba(255,255,255,0.97)', borderRadius:'22px', padding:'38px', width:'100%', maxWidth:'420px', position:'relative', boxShadow:'0 30px 80px rgba(0,0,0,0.25)', border:'2px solid rgba(212,175,55,0.25)' }}
+            onClick={e => e.stopPropagation()}>
+            <button onClick={() => { setIsAdminModalOpen(false); setAdminFormError(''); setAdminFormSuccess(''); }}
+              style={{ position:'absolute', top:'18px', right:'18px', background:'none', border:'none', fontSize:'22px', color:'var(--text-secondary)', cursor:'pointer' }}>&times;</button>
+
+            <div style={{ textAlign:'center', marginBottom:'26px' }}>
+              <div style={{ width:'60px', height:'60px', borderRadius:'50%', background:'linear-gradient(135deg,#d4af37,#a0683a)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px', boxShadow:'0 4px 20px rgba(212,175,55,0.35)' }}>
+                <svg fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2" style={{width:'28px',height:'28px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+              </div>
+              <h3 style={{ margin:0, fontSize:'22px', fontWeight:'800', color:'var(--text-primary)' }}>Create Admin Account</h3>
+              <p style={{ margin:'6px 0 0', fontSize:'13px', color:'var(--text-secondary)' }}>Only System Administrators can create new admin accounts.<br/>The created admin will have full dashboard access.</p>
+            </div>
+
+            <form onSubmit={handleCreateAdmin} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+              <div>
+                <label style={{ fontSize:'11px', fontWeight:'700', color:'var(--text-secondary)', display:'block', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.06em' }}>Admin Login ID *</label>
+                <input type="text" value={adminForm.loginId} onChange={aff('loginId')} placeholder="e.g. admin_ravi"
+                  style={{ width:'100%', height:'44px', borderRadius:'11px', border:'1.5px solid rgba(212,175,55,0.3)', padding:'0 14px', fontSize:'14px', outline:'none', background:'rgba(255,255,255,0.95)', color:'var(--text-primary)', boxSizing:'border-box', transition:'border 0.2s' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:'11px', fontWeight:'700', color:'var(--text-secondary)', display:'block', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.06em' }}>Password *</label>
+                <input type="password" value={adminForm.password} onChange={aff('password')} placeholder="Minimum 6 characters"
+                  style={{ width:'100%', height:'44px', borderRadius:'11px', border:'1.5px solid rgba(212,175,55,0.3)', padding:'0 14px', fontSize:'14px', outline:'none', background:'rgba(255,255,255,0.95)', color:'var(--text-primary)', boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:'11px', fontWeight:'700', color:'var(--text-secondary)', display:'block', marginBottom:'5px', textTransform:'uppercase', letterSpacing:'0.06em' }}>Confirm Password *</label>
+                <input type="password" value={adminForm.confirmPassword} onChange={aff('confirmPassword')} placeholder="Re-enter password"
+                  style={{ width:'100%', height:'44px', borderRadius:'11px', border:'1.5px solid rgba(212,175,55,0.3)', padding:'0 14px', fontSize:'14px', outline:'none', background:'rgba(255,255,255,0.95)', color:'var(--text-primary)', boxSizing:'border-box' }} />
+              </div>
+              {adminFormError   && <div style={{ background:'rgba(166,94,85,0.10)', border:'1px solid rgba(166,94,85,0.25)', borderRadius:'9px', padding:'10px 14px', fontSize:'12px', color:'#A65E55', fontWeight:'600' }}>{adminFormError}</div>}
+              {adminFormSuccess && <div style={{ background:'rgba(93,112,82,0.10)', border:'1px solid rgba(93,112,82,0.25)', borderRadius:'9px', padding:'10px 14px', fontSize:'12px', color:'#5D7052', fontWeight:'600' }}>🛡️ {adminFormSuccess}</div>}
+              <button type="submit"
+                style={{ marginTop:'6px', height:'48px', borderRadius:'13px', border:'none', background:'linear-gradient(135deg,#d4af37,#a0683a)', color:'#fff', fontWeight:'800', fontSize:'15px', cursor:'pointer', letterSpacing:'0.06em', boxShadow:'0 6px 24px rgba(212,175,55,0.35)', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}>
+                <svg fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.5" style={{width:'18px',height:'18px'}}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                CREATE ADMIN ACCOUNT
               </button>
             </form>
           </div>

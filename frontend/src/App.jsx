@@ -200,6 +200,7 @@ function App() {
               {currentView === 'settings' && <Settings />}
               {currentView === 'notifications' && <Notifications />}
               {currentView === 'admin-dashboard' && <AdminDashboard currentUser={currentUser} />}
+              {currentView === 'admin-creation' && <AdminDashboard currentUser={currentUser} openAdminCreation={true} />}
               {currentView === 'user-permissions' && <UserManagementPermissions />}
             </>
           )}
