@@ -3,14 +3,13 @@ import { mockDashboardData } from '../data/mockData';
 
 function Dashboard({ currentUser, onNavigate, searchVal }) {
   // Store the active filter state
-  const [activeFilter, setActiveFilter] = useState({
-    section: 'sales',
-    mode: 'All',
-    status: 'Confirmed'
-  });
+  const [activeFilter, setActiveFilter] = useState(null);
+
+  // Store the selected order for detail modal view
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const handlePillClick = (section, mode, status) => {
-    if (activeFilter.section === section && activeFilter.mode === mode && activeFilter.status === status) {
+    if (activeFilter && activeFilter.section === section && activeFilter.mode === mode && activeFilter.status === status) {
       setActiveFilter(null);
     } else {
       setActiveFilter({ section, mode, status });
@@ -252,7 +251,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
                           <td style={{ fontWeight: '600' }}>{order.amount}</td>
                           <td>{order.owner}</td>
                           <td>
-                            <button className="btn btn-outline btn-small-table" onClick={() => alert(`Details for ${order.id} ready to load.`)}>
+                            <button className="btn btn-outline btn-small-table" onClick={() => setSelectedOrder({ ...order, section: 'sales' })}>
                               Manage
                             </button>
                           </td>
@@ -356,7 +355,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
                           <td style={{ fontWeight: '600' }}>{order.amount}</td>
                           <td>{order.owner}</td>
                           <td>
-                            <button className="btn btn-outline btn-small-table" onClick={() => alert(`Details for ${order.id} ready to load.`)}>
+                            <button className="btn btn-outline btn-small-table" onClick={() => setSelectedOrder({ ...order, section: 'purchase' })}>
                               Manage
                             </button>
                           </td>
@@ -460,7 +459,7 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
                           <td style={{ fontWeight: '600' }}>{order.qty}</td>
                           <td>{order.owner}</td>
                           <td>
-                            <button className="btn btn-outline btn-small-table" onClick={() => alert(`Details for ${order.id} ready to load.`)}>
+                            <button className="btn btn-outline btn-small-table" onClick={() => setSelectedOrder({ ...order, section: 'manufacturing' })}>
                               Manage
                             </button>
                           </td>
@@ -496,6 +495,184 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
           ))}
         </div>
       </div>
+
+      {/* DETAIL MODAL OVERLAY */}
+      {selectedOrder && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(62, 47, 39, 0.45)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div className="card glass" style={{
+            maxWidth: '500px',
+            width: '90%',
+            padding: '28px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+            position: 'relative'
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: '1px solid var(--card-border)',
+              paddingBottom: '14px',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                {selectedOrder.section === 'sales' ? 'Sales Order Details' : 
+                 selectedOrder.section === 'purchase' ? 'Purchase Order Details' : 
+                 'Manufacturing Order Details'}
+              </h3>
+              <button 
+                onClick={() => setSelectedOrder(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  lineHeight: '1'
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body Info Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px',
+              textAlign: 'left',
+              marginBottom: '24px'
+            }}>
+              <div style={{ gridColumn: 'span 2' }}>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  {selectedOrder.section === 'sales' ? 'Order ID' : 
+                   selectedOrder.section === 'purchase' ? 'Reference' : 
+                   'Manufacturing ID'}
+                </span>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)', fontFamily: 'monospace', marginTop: '2px' }}>
+                  {selectedOrder.id}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  {selectedOrder.section === 'sales' ? 'Furniture Item' : 
+                   selectedOrder.section === 'purchase' ? 'Supply Item' : 
+                   'Operation'}
+                </span>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedOrder.name}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  {selectedOrder.section === 'manufacturing' ? 'Work Center' : 'Category'}
+                </span>
+                <div style={{ marginTop: '2px' }}>
+                  <span className="badge category-badge">{selectedOrder.type}</span>
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  {selectedOrder.section === 'sales' ? 'Release Date' : 
+                   selectedOrder.section === 'purchase' ? 'Order Date' : 
+                   'Scheduled Date'}
+                </span>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedOrder.date}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  {selectedOrder.section === 'manufacturing' ? 'Batch Qty' : 'Amount'}
+                </span>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedOrder.section === 'manufacturing' ? selectedOrder.qty : selectedOrder.amount}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  {selectedOrder.section === 'sales' ? 'Owner' : 
+                   selectedOrder.section === 'purchase' ? 'Requestor' : 
+                   'Supervisor'}
+                </span>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedOrder.owner}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Status
+                </span>
+                <div style={{ marginTop: '4px' }}>
+                  <span className="badge" style={{
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    background: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Received' || selectedOrder.status === 'Done' ? '#d1fae5' : 
+                                selectedOrder.status === 'Draft' ? '#f3f4f6' : 
+                                selectedOrder.status === 'Late' ? '#fee2e2' : '#fef3c7',
+                    color: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Received' || selectedOrder.status === 'Done' ? '#065f46' : 
+                           selectedOrder.status === 'Draft' ? '#374151' : 
+                           selectedOrder.status === 'Late' ? '#991b1b' : '#92400e'
+                  }}>
+                    {selectedOrder.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{
+              borderTop: '1px solid var(--card-border)',
+              paddingTop: '18px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px'
+            }}>
+              <button 
+                className="btn btn-outline" 
+                onClick={() => setSelectedOrder(null)}
+                style={{ marginTop: 0 }}
+              >
+                Close
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  const targetView = selectedOrder.section === 'sales' ? 'sales-orders' : 
+                                     selectedOrder.section === 'purchase' ? 'purchase-orders' : 
+                                     'manufacturing-orders';
+                  onNavigate(targetView);
+                  setSelectedOrder(null);
+                }}
+                style={{ marginTop: 0, width: 'auto', padding: '0 20px' }}
+              >
+                Manage in Module
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

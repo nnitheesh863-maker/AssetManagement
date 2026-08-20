@@ -134,8 +134,8 @@ function App() {
               )}
               {currentView === 'sales-orders' && <SalesOrders onNavigate={handleNavigation} />}
               {currentView === 'purchase-orders' && <PurchaseOrders onNavigate={handleNavigation} />}
-              {currentView === 'manufacturing-orders' && <ManufacturingOrders />}
-              {currentView === 'bom' && <BOM />}
+              {currentView === 'manufacturing-orders' && <ManufacturingOrders onNavigate={handleNavigation} />}
+              {currentView === 'bom' && <BOM onNavigate={handleNavigation} />}
               {currentView === 'products' && <Products />}
               {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} />}
               {currentView === 'profile' && <Profile currentUser={currentUser} />}

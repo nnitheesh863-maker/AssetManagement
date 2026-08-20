@@ -1,22 +1,388 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+
+const CATEGORY_LIST = [
+  'Custom Dining',
+  'Dining Room',
+  'Bedroom Series',
+  'Patio Series',
+  'Living Room',
+  'Office Series',
+  'Assembly Line',
+  'Pre-Production'
+];
 
 function Products() {
+  const [products, setProducts] = useState([]);
+  const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
+  const [selectedProduct, setSelectedProduct] = useState(null); // null for new
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Form Fields State
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState(CATEGORY_LIST[0]);
+  const [salesPrice, setSalesPrice] = useState(100);
+  const [costPrice, setCostPrice] = useState(60);
+
+  // Load products on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('assetflow_products');
+    if (saved) {
+      setProducts(JSON.parse(saved));
+    } else {
+      const initial = [
+        { id: 'PROD-001', name: 'Deluxe Oak Dining Table', category: 'Custom Dining', salesPrice: 1200, costPrice: 800 },
+        { id: 'PROD-002', name: 'Ash Wood Chair Pack', category: 'Dining Room', salesPrice: 380, costPrice: 250 },
+        { id: 'PROD-003', name: 'Beech Wood Bedframe', category: 'Bedroom Series', salesPrice: 1100, costPrice: 750 },
+        { id: 'PROD-004', name: 'Cedar Garden Table', category: 'Patio Series', salesPrice: 720, costPrice: 480 },
+        { id: 'PROD-005', name: 'Cherry Wood Bookshelf', category: 'Living Room', salesPrice: 950, costPrice: 620 },
+        { id: 'PROD-006', name: 'Birch Coffee Table', category: 'Living Room', salesPrice: 410, costPrice: 270 },
+        { id: 'PROD-007', name: 'Walnut Sideboard', category: 'Custom Dining', salesPrice: 1500, costPrice: 1000 },
+        { id: 'PROD-008', name: 'Door Frames', category: 'Pre-Production', salesPrice: 150, costPrice: 90 },
+        { id: 'PROD-009', name: 'Lighting Frame', category: 'Assembly Line', salesPrice: 200, costPrice: 120 }
+      ];
+      setProducts(initial);
+      localStorage.setItem('assetflow_products', JSON.stringify(initial));
+    }
+  }, []);
+
+  const saveProducts = (updatedList) => {
+    setProducts(updatedList);
+    localStorage.setItem('assetflow_products', JSON.stringify(updatedList));
+  };
+
+  // Open Form for Editing
+  const handleEditProduct = (prod) => {
+    setSelectedProduct(prod);
+    setName(prod.name);
+    setCategory(prod.category);
+    setSalesPrice(prod.salesPrice);
+    setCostPrice(prod.costPrice);
+    setActiveView('form');
+  };
+
+  // Open Form for Creating New
+  const handleNewProduct = () => {
+    setSelectedProduct(null);
+    setName('');
+    setCategory(CATEGORY_LIST[0]);
+    setSalesPrice(100);
+    setCostPrice(60);
+    setActiveView('form');
+  };
+
+  // Save Product Form
+  const handleSaveProduct = (e) => {
+    e.preventDefault();
+    if (!name) {
+      alert('Please fill out the product name.');
+      return;
+    }
+
+    if (selectedProduct) {
+      // Edit
+      const updated = products.map(p => {
+        if (p.id === selectedProduct.id) {
+          return {
+            ...p,
+            name,
+            category,
+            salesPrice: parseFloat(salesPrice) || 0,
+            costPrice: parseFloat(costPrice) || 0
+          };
+        }
+        return p;
+      });
+      saveProducts(updated);
+    } else {
+      // Create new
+      const nextNum = products.length + 1;
+      const newId = `PROD-${String(nextNum).padStart(3, '0')}`;
+      const newProd = {
+        id: newId,
+        name,
+        category,
+        salesPrice: parseFloat(salesPrice) || 0,
+        costPrice: parseFloat(costPrice) || 0
+      };
+      saveProducts([...products, newProd]);
+    }
+    setActiveView('list');
+  };
+
+  // Checkbox Selection
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredProducts.map(p => p.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(x => x !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  // Filter products by search
+  const filteredProducts = products.filter(p => 
+    p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="page-content animated fadeIn" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-      <div className="card glass" style={{ maxWidth: '640px', padding: '40px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-        {/* Armchair Icon */}
-        <div style={{ padding: '20px', borderRadius: '50%', background: 'rgba(207, 142, 109, 0.1)', color: 'var(--primary)', display: 'inline-flex' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '48px', height: '48px' }}>
-            <path d="M7 3h10a1 1 0 0 1 1 1v8H6V4a1 1 0 0 1 1-1z" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M5 12h14a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M6 16v5M18 16v5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+    <div className="page-content animated fadeIn">
+      
+      {/* HEADER CONTROLS */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)' }}>Products Catalog</h2>
+          <p className="sys-desc" style={{ margin: '4px 0 0 0' }}>Manage product models, sales/cost price rules and design configurations</p>
         </div>
-        <h2 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>Products & Designs Catalog</h2>
-        <p style={{ fontSize: '27px', lineHeight: '1.6', color: '#5E4A3F', margin: 0 }}>
-          This module is ready for implementation. Later, this view will connect to Express.js REST APIs and display a full PostgreSQL database query console for standard and custom furniture product listings, pricing matrices, and raw materials spec sheets.
-        </p>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className={`btn ${activeView === 'list' ? 'btn-primary' : 'btn-outline'}`} 
+            onClick={() => setActiveView('list')}
+            style={{ marginTop: 0 }}
+          >
+            List View
+          </button>
+          <button 
+            className={`btn ${activeView === 'kanban' ? 'btn-primary' : 'btn-outline'}`} 
+            onClick={() => setActiveView('kanban')}
+            style={{ marginTop: 0 }}
+          >
+            Kanban Board
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleNewProduct}
+            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
+          >
+            ＋ New Product
+          </button>
+        </div>
       </div>
+
+      {/* 1. LIST VIEW */}
+      {activeView === 'list' && (
+        <div className="card glass erp-dashboard-panel" style={{ padding: '24px' }}>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <input
+              type="text"
+              placeholder="Search by ID, name or category..."
+              className="filter-control-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: '320px' }}
+            />
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Showing {filteredProducts.length} products
+            </span>
+          </div>
+
+          <div className="table-container-scroll">
+            <table className="erp-dashboard-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '40px' }}>
+                    <input 
+                      type="checkbox" 
+                      onChange={handleSelectAll} 
+                      checked={filteredProducts.length > 0 && selectedIds.length === filteredProducts.length}
+                    />
+                  </th>
+                  <th>Product ID</th>
+                  <th>Product Name</th>
+                  <th>Category</th>
+                  <th>Sales Price</th>
+                  <th>Cost Price</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map(prod => (
+                    <tr key={prod.id}>
+                      <td>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(prod.id)}
+                          onChange={() => handleSelectRow(prod.id)}
+                        />
+                      </td>
+                      <td className="order-id-cell">{prod.id}</td>
+                      <td style={{ fontWeight: '600' }}>{prod.name}</td>
+                      <td><span className="badge category-badge">{prod.category}</span></td>
+                      <td style={{ fontWeight: '700' }}>${prod.salesPrice.toFixed(2)}</td>
+                      <td style={{ color: 'var(--text-secondary)' }}>${prod.costPrice.toFixed(2)}</td>
+                      <td>
+                        <button className="btn btn-outline btn-small-table" onClick={() => handleEditProduct(prod)}>
+                          Edit / Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                      No products found matching your search.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 2. KANBAN VIEW */}
+      {activeView === 'kanban' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', alignItems: 'flex-start' }}>
+          {CATEGORY_LIST.slice(0, 4).map(catName => {
+            const list = products.filter(p => p.category === catName);
+            return (
+              <div key={catName} className="card glass" style={{ padding: '16px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(250, 244, 235, 0.4)' }}>
+                <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '13px', color: 'var(--text-secondary)', letterSpacing: '0.5px', textAlign: 'left', borderBottom: '2px solid var(--card-border)', paddingBottom: '8px' }}>
+                  {catName} ({list.length})
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
+                  {list.map(prod => (
+                    <div 
+                      key={prod.id} 
+                      onClick={() => handleEditProduct(prod)}
+                      style={{ 
+                        background: '#FFFBF7', 
+                        border: '1px solid var(--card-border)', 
+                        borderRadius: '8px', 
+                        padding: '12px', 
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.02)',
+                        transition: 'transform 0.2s'
+                      }}
+                      className="kanban-card-hover"
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: '700', color: 'var(--primary)', fontFamily: 'monospace' }}>{prod.id}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>${prod.salesPrice}</span>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{prod.name}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Cost: ${prod.costPrice}</div>
+                    </div>
+                  ))}
+                  {list.length === 0 && (
+                    <div style={{ padding: '24px', border: '1px dashed var(--card-border)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                      No products
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 3. FORM VIEW */}
+      {activeView === 'form' && (
+        <div className="card glass" style={{ padding: '36px', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border)', paddingBottom: '16px', marginBottom: '24px' }}>
+            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
+              {selectedProduct ? `Edit Product ${selectedProduct.id}` : 'New Product'}
+            </h3>
+            <span className="status-pill status-active" style={{ fontSize: '13px', fontWeight: '800', padding: '6px 12px', background: '#e0f2fe', color: '#0369a1', borderRadius: '12px' }}>
+              {selectedProduct ? selectedProduct.id : 'Draft'}
+            </span>
+          </div>
+
+          <form onSubmit={handleSaveProduct} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              
+              {/* Product Name */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Product Name *</label>
+                <input
+                  type="text"
+                  className="filter-control-input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Deluxe Oak Dining Table"
+                  required
+                />
+              </div>
+
+              {/* Category */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Category</label>
+                <select
+                  className="filter-control-select"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  {CATEGORY_LIST.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sales Price */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Sales Price ($) *</label>
+                <input
+                  type="number"
+                  className="filter-control-input"
+                  value={salesPrice}
+                  onChange={(e) => setSalesPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                  min={0}
+                  required
+                />
+              </div>
+
+              {/* Cost Price */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Cost Price ($) *</label>
+                <input
+                  type="number"
+                  className="filter-control-input"
+                  value={costPrice}
+                  onChange={(e) => setCostPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                  min={0}
+                  required
+                />
+              </div>
+
+            </div>
+
+            {/* BUTTON BAR */}
+            <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => setActiveView('list')}
+                style={{ marginTop: 0 }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="btn btn-primary"
+                style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
+              >
+                Save Product
+              </button>
+            </div>
+
+          </form>
+        </div>
+      )}
+
     </div>
   );
 }

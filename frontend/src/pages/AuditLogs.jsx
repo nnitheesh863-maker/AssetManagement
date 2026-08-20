@@ -7,7 +7,7 @@ function AuditLogs({ defaultModuleFilter = 'All Modules' }) {
     { datetime: '26 May 2026, 11:15 AM', user: 'Neha Verma', module: 'Sales', type: 'Item', id: 'ITEM-0102', action: 'Updated', field: 'Cost Price', oldVal: '₹80.00', newVal: '₹85.00' },
     { datetime: '26 May 2026, 10:55 AM', user: 'Ravi Patel', module: 'Purchase', type: 'Purchase Order', id: 'PO-2026-087', action: 'Created', field: '-', oldVal: '-', newVal: '-' },
     { datetime: '26 May 2026, 10:20 AM', user: 'Amit Sharma', module: 'Purchase', type: 'Item', id: 'ITEM-0456', action: 'Updated', field: 'Cost Price', oldVal: '₹45.00', newVal: '₹50.00' },
-    { datetime: '26 May 2026, 09:48 AM', user: 'Meera Singh', module: 'Manufacturing', type: 'BOM', id: 'BOM-2026-015', action: 'Created', field: '-', oldVal: '-', newVal: '-' },
+    { datetime: '26 May 2026, 09:48 AM', user: 'Meera Singh', module: 'BOM', type: 'BOM', id: 'BOM-2026-015', action: 'Created', field: '-', oldVal: '-', newVal: '-' },
     { datetime: '26 May 2026, 09:30 AM', user: 'Ravi Patel', module: 'Sales', type: 'Item', id: 'ITEM-0102', action: 'Updated', field: 'Sales Price', oldVal: '₹110.00', newVal: '₹120.00' },
     { datetime: '26 May 2026, 09:10 AM', user: 'Neha Verma', module: 'Purchase', type: 'Product', id: 'PROD-0021', action: 'Deleted', field: '-', oldVal: '-', newVal: '-' },
     { datetime: '26 May 2026, 08:45 AM', user: 'Amit Sharma', module: 'Manufacturing', type: 'Manufacturing Order', id: 'MO-2026-022', action: 'Updated', field: 'Demand', oldVal: '80', newVal: '100' },
@@ -250,6 +250,7 @@ function AuditLogs({ defaultModuleFilter = 'All Modules' }) {
                 <option value="Sales">Sales</option>
                 <option value="Purchase">Purchase</option>
                 <option value="Manufacturing">Manufacturing</option>
+                <option value="BOM">BOM</option>
               </select>
             </div>
 
