@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 
-const SUPERVISOR_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
+const ASSIGNEE_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
+
+// Pre-seeded components for selection
+const COMPONENT_OPTIONS = [
+  'Teak Veneer',
+  'Raw Lumber',
+  'Drawer handles',
+  'Wood Glue',
+  'Pendant lights',
+  'Heavy Duty Wood Screws',
+  'Sanding Discs Box',
+  'Oak Wood Veneer Rolls'
+];
+
+const WORK_CENTER_LIST = [
+  'Pre-Production',
+  'Assembly Line',
+  'Finishing Line',
+  'Upholstery Dep'
+];
 
 function ManufacturingOrders({ onNavigate }) {
   const [mfgOrders, setMfgOrders] = useState([]);
@@ -8,19 +27,24 @@ function ManufacturingOrders({ onNavigate }) {
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   // Form Fields State
   const [selectedBomId, setSelectedBomId] = useState('');
   const [finishedProduct, setFinishedProduct] = useState('');
   const [qty, setQty] = useState(1);
-  const [supervisor, setSupervisor] = useState(SUPERVISOR_LIST[0]);
+  const [assignee, setAssignee] = useState(ASSIGNEE_LIST[0]);
   const [scheduledDate, setScheduledDate] = useState('');
   const [orderStatus, setOrderStatus] = useState('Draft');
   
-  // Tab details for components and operations populated from BOM
-  const [activeTab, setActiveTab] = useState('components'); // 'components' | 'operations'
+  // Tab details
+  const [activeTab, setActiveTab] = useState('components'); // 'components' | 'work-orders'
   const [components, setComponents] = useState([]);
   const [operations, setOperations] = useState([]);
+
+  // Live Timer State for Operations
+  const [activeTimerId, setActiveTimerId] = useState(null);
+  const [timerIntervalId, setTimerIntervalId] = useState(null);
 
   // Load orders and BOMs on mount
   useEffect(() => {
@@ -28,26 +52,6 @@ function ManufacturingOrders({ onNavigate }) {
     const savedBoms = localStorage.getItem('assetflow_boms');
     if (savedBoms) {
       setBoms(JSON.parse(savedBoms));
-    } else {
-      // Default fallback BOMs if not set
-      const defaultBoms = [
-        {
-          id: 'BOM-000001',
-          reference: 'DF-01',
-          product: 'Door Frames',
-          qty: 10.0,
-          unit: 'Units',
-          components: [
-            { id: 1, name: 'Raw Lumber', qty: 15, unit: 'Units' },
-            { id: 2, name: 'Wood Glue', qty: 2, unit: 'Units' }
-          ],
-          workOrders: [
-            { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45 },
-            { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60 }
-          ]
-        }
-      ];
-      setBoms(defaultBoms);
     }
 
     // Load Mfg Orders
@@ -55,50 +59,42 @@ function ManufacturingOrders({ onNavigate }) {
     if (savedOrders) {
       setMfgOrders(JSON.parse(savedOrders));
     } else {
-      // Map initial mock data to our structural format
       const initial = [
         {
-          id: 'MO-001',
+          id: 'MO-000001',
           bomId: 'BOM-000001',
-          product: 'Cushion Padding - Sofa Sets',
-          qty: 5,
+          product: 'Door Frames',
+          qty: 10.0,
           unit: 'Units',
-          workCenter: 'Upholstery Dep',
-          date: '2026-08-19',
-          owner: 'Mahesh Gupta',
+          workCenter: 'Pre-Production',
+          date: '2026-08-20',
+          owner: 'Amit Sharma',
           status: 'Confirmed',
           components: [
-            { id: 1, name: 'Raw Lumber', qty: 8, unit: 'Units' }
+            { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
+            { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
           ],
           workOrders: [
-            { id: 1, operation: 'Upholstery Cover Stapling', workCenter: 'Upholstery Dep', duration: 15 }
+            { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
+            { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
           ]
         },
         {
-          id: 'MO-002',
+          id: 'MO-000002',
           bomId: '',
-          product: 'Armchair Frame Welding',
-          qty: 8,
+          product: 'Lighting Frame',
+          qty: 5.0,
           unit: 'Units',
           workCenter: 'Assembly Line',
           date: '2026-08-19',
-          owner: 'Mahesh Gupta',
-          status: 'Confirmed',
-          components: [],
-          workOrders: []
-        },
-        {
-          id: 'MO-008',
-          bomId: '',
-          product: 'Board Cutting - Wardrobes',
-          qty: 20,
-          unit: 'Units',
-          workCenter: 'Pre-Production',
-          date: '2026-08-17',
-          owner: 'Mahesh Gupta',
+          owner: 'Neha Verma',
           status: 'Draft',
-          components: [],
-          workOrders: []
+          components: [
+            { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
+          ],
+          workOrders: [
+            { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
+          ]
         }
       ];
       setMfgOrders(initial);
@@ -106,34 +102,74 @@ function ManufacturingOrders({ onNavigate }) {
     }
   }, []);
 
+  // Timer clean up
+  useEffect(() => {
+    return () => {
+      if (timerIntervalId) clearInterval(timerIntervalId);
+    };
+  }, [timerIntervalId]);
+
   const saveOrders = (updatedList) => {
     setMfgOrders(updatedList);
     localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(updatedList));
   };
 
+  // Helper to check component stock availability (Assume max stock of raw components is 12 units)
+  const isComponentAvailable = (comp) => {
+    const requiredQty = comp.qty * qty;
+    return requiredQty <= 12;
+  };
+
+  // Helper to determine total component status of an order
+  const getOrderComponentStatus = (order) => {
+    if (!order.components || order.components.length === 0) return 'Available';
+    const allAvailable = order.components.every(c => {
+      const requiredQty = c.qty * (order.qty || 1);
+      return requiredQty <= 12;
+    });
+    return allAvailable ? 'Available' : 'Not Available';
+  };
+
   // Handle BOM selection and auto-populate fields
   const handleBomChange = (bomId) => {
     setSelectedBomId(bomId);
-    if (!bomId) {
-      return;
-    }
+    if (!bomId) return;
     const foundBom = boms.find(b => b.id === bomId);
     if (foundBom) {
       setFinishedProduct(foundBom.product);
       setQty(foundBom.qty);
-      setComponents(foundBom.components || []);
-      // Map workOrders to operations
-      setOperations(foundBom.workOrders || []);
+      
+      // Auto populate components with default consumed = 0
+      const populatedComps = (foundBom.components || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        qty: c.qty,
+        consumed: 0,
+        unit: c.unit
+      }));
+      setComponents(populatedComps);
+
+      // Auto populate operations with default realDuration = 0
+      const populatedOps = (foundBom.workOrders || []).map(w => ({
+        id: w.id,
+        operation: w.operation,
+        workCenter: w.workCenter,
+        duration: w.duration,
+        realDuration: 0
+      }));
+      setOperations(populatedOps);
     }
   };
 
   // Open form for editing
   const handleEditOrder = (order) => {
+    // If active timer, clear it
+    stopTimer();
     setSelectedOrder(order);
     setSelectedBomId(order.bomId || '');
     setFinishedProduct(order.product);
     setQty(order.qty);
-    setSupervisor(order.owner);
+    setAssignee(order.owner);
     setScheduledDate(order.date);
     setOrderStatus(order.status);
     setComponents(order.components || []);
@@ -144,30 +180,34 @@ function ManufacturingOrders({ onNavigate }) {
 
   // Open form for creating new
   const handleNewOrder = () => {
+    stopTimer();
     setSelectedOrder(null);
     setSelectedBomId('');
     setFinishedProduct('');
     setQty(1);
-    setSupervisor(SUPERVISOR_LIST[0]);
+    setAssignee(ASSIGNEE_LIST[0]);
     const today = new Date().toISOString().split('T')[0];
     setScheduledDate(today);
     setOrderStatus('Draft');
-    setComponents([]);
-    setOperations([]);
+    setComponents([
+      { id: Date.now(), name: COMPONENT_OPTIONS[0], qty: 1, consumed: 0, unit: 'Units' }
+    ]);
+    setOperations([
+      { id: Date.now(), operation: 'Cutting Frame', workCenter: WORK_CENTER_LIST[0], duration: 30, realDuration: 0 }
+    ]);
     setActiveTab('components');
     setActiveView('form');
   };
 
   // Save changes from form
   const handleSaveForm = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!finishedProduct || !scheduledDate) {
       alert('Please fill out all mandatory fields.');
       return;
     }
 
-    // Determine primary work center from operations or default
-    const workCenter = operations.length > 0 ? operations[0].workCenter : 'Assembly Line';
+    const primaryWorkCenter = operations.length > 0 ? operations[0].workCenter : 'Assembly Line';
 
     if (selectedOrder) {
       // Edit existing
@@ -178,10 +218,10 @@ function ManufacturingOrders({ onNavigate }) {
             bomId: selectedBomId,
             product: finishedProduct,
             qty,
-            owner: supervisor,
+            owner: assignee,
             date: scheduledDate,
             status: orderStatus,
-            workCenter,
+            workCenter: primaryWorkCenter,
             components,
             workOrders: operations
           };
@@ -190,17 +230,18 @@ function ManufacturingOrders({ onNavigate }) {
       });
       saveOrders(updated);
     } else {
-      // Create new
-      const newId = `MO-${String(mfgOrders.length + 1).padStart(3, '0')}`;
+      // Create new with autogenerated zero-padded sequence
+      const nextNum = mfgOrders.length + 1;
+      const newId = `MO-${String(nextNum).padStart(6, '0')}`;
       const newOrder = {
         id: newId,
         bomId: selectedBomId,
         product: finishedProduct,
         qty,
         unit: 'Units',
-        workCenter,
+        workCenter: primaryWorkCenter,
         date: scheduledDate,
-        owner: supervisor,
+        owner: assignee,
         status: 'Draft',
         components,
         workOrders: operations
@@ -208,6 +249,7 @@ function ManufacturingOrders({ onNavigate }) {
       saveOrders([...mfgOrders, newOrder]);
     }
 
+    stopTimer();
     setActiveView('list');
   };
 
@@ -240,6 +282,7 @@ function ManufacturingOrders({ onNavigate }) {
 
   const handleMarkAsDone = () => {
     setOrderStatus('Done');
+    stopTimer();
     if (selectedOrder) {
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
@@ -253,6 +296,7 @@ function ManufacturingOrders({ onNavigate }) {
 
   const handleCancelOrder = () => {
     setOrderStatus('Cancelled');
+    stopTimer();
     if (selectedOrder) {
       const updated = mfgOrders.map(o => {
         if (o.id === selectedOrder.id) {
@@ -264,21 +308,98 @@ function ManufacturingOrders({ onNavigate }) {
     }
   };
 
-  // Dynamic add/remove components in form
-  const handleAddComponent = () => {
-    setComponents([...components, { id: Date.now(), name: 'Raw Lumber', qty: 1, unit: 'Units' }]);
+  // Live Timer Operations
+  const toggleOperationTimer = (opId) => {
+    if (activeTimerId === opId) {
+      // Pause
+      stopTimer();
+    } else {
+      // Start/Resume
+      stopTimer();
+      setActiveTimerId(opId);
+      const interval = setInterval(() => {
+        setOperations(prevOps => prevOps.map(op => {
+          if (op.id === opId) {
+            return { ...op, realDuration: (op.realDuration || 0) + 1 };
+          }
+          return op;
+        }));
+      }, 1000);
+      setTimerIntervalId(interval);
+    }
   };
 
-  const handleRemoveComponent = (id) => {
+  const stopTimer = () => {
+    if (timerIntervalId) {
+      clearInterval(timerIntervalId);
+      setTimerIntervalId(null);
+    }
+    setActiveTimerId(null);
+  };
+
+  const formatRealDuration = (seconds) => {
+    const secs = seconds || 0;
+    const mins = Math.floor(secs / 60);
+    const remainingSecs = secs % 60;
+    return `${String(mins).padStart(2, '0')}:${String(remainingSecs).padStart(2, '0')}`;
+  };
+
+  // Components table line handling
+  const handleAddComponentLine = () => {
+    const newLine = {
+      id: Date.now(),
+      name: COMPONENT_OPTIONS[0],
+      qty: 1,
+      consumed: 0,
+      unit: 'Units'
+    };
+    setComponents([...components, newLine]);
+  };
+
+  const handleUpdateComponentLine = (id, field, value) => {
+    setComponents(components.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+
+  const handleRemoveComponentLine = (id) => {
     setComponents(components.filter(c => c.id !== id));
   };
 
-  const handleAddOperation = () => {
-    setOperations([...operations, { id: Date.now(), operation: 'New Operation', workCenter: 'Assembly Line', duration: 30 }]);
+  // Operations table line handling
+  const handleAddOperationLine = () => {
+    const newLine = {
+      id: Date.now(),
+      operation: 'New Routing Step',
+      workCenter: WORK_CENTER_LIST[0],
+      duration: 30,
+      realDuration: 0
+    };
+    setOperations([...operations, newLine]);
   };
 
-  const handleRemoveOperation = (id) => {
+  const handleUpdateOperationLine = (id, field, value) => {
+    setOperations(operations.map(op => op.id === id ? { ...op, [field]: value } : op));
+  };
+
+  const handleRemoveOperationLine = (id) => {
+    if (activeTimerId === id) stopTimer();
     setOperations(operations.filter(op => op.id !== id));
+  };
+
+  // Checkbox Selection in List
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredOrders.map(o => o.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(x => x !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
   };
 
   // Filter orders by search
@@ -301,14 +422,14 @@ function ManufacturingOrders({ onNavigate }) {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
             className={`btn ${activeView === 'list' ? 'btn-primary' : 'btn-outline'}`} 
-            onClick={() => setActiveView('list')}
+            onClick={() => { stopTimer(); setActiveView('list'); }}
             style={{ marginTop: 0 }}
           >
             List View
           </button>
           <button 
             className={`btn ${activeView === 'kanban' ? 'btn-primary' : 'btn-outline'}`} 
-            onClick={() => setActiveView('kanban')}
+            onClick={() => { stopTimer(); setActiveView('kanban'); }}
             style={{ marginTop: 0 }}
           >
             Kanban Board
@@ -316,9 +437,12 @@ function ManufacturingOrders({ onNavigate }) {
           <button 
             className="btn btn-primary" 
             onClick={handleNewOrder}
-            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
+            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            ＋ New Manufacturing Order
+            <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            New Manufacturing Order
           </button>
         </div>
       </div>
@@ -327,62 +451,117 @@ function ManufacturingOrders({ onNavigate }) {
       {activeView === 'list' && (
         <div className="card glass erp-dashboard-panel" style={{ padding: '24px' }}>
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <input
-              type="text"
-              placeholder="Search by ID, product or work center..."
-              className="filter-control-input"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '320px' }}
-            />
-            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Showing {filteredOrders.length} orders
-            </span>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Search Reference, product or work center..."
+                className="filter-control-input"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: '360px', paddingLeft: '32px' }}
+              />
+              <span style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)' }}>🔍</span>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
+                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filter
+              </button>
+              <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
+                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export
+              </button>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '10px' }}>
+                Showing {filteredOrders.length} orders
+              </span>
+            </div>
           </div>
 
           <div className="table-container-scroll">
             <table className="erp-dashboard-table">
               <thead>
                 <tr>
-                  <th>Order ID</th>
-                  <th>Scheduled Date</th>
+                  <th style={{ width: '40px' }}>
+                    <input 
+                      type="checkbox" 
+                      onChange={handleSelectAll} 
+                      checked={filteredOrders.length > 0 && selectedIds.length === filteredOrders.length}
+                    />
+                  </th>
+                  <th>Reference</th>
+                  <th>Date</th>
                   <th>Finished Product</th>
-                  <th>Work Center</th>
-                  <th>Batch Qty</th>
-                  <th>Supervisor</th>
+                  <th>Component Status</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.length > 0 ? (
-                  filteredOrders.map(order => (
-                    <tr key={order.id}>
-                      <td className="order-id-cell">{order.id}</td>
-                      <td>{order.date}</td>
-                      <td style={{ fontWeight: '600' }}>{order.product}</td>
-                      <td><span className="badge category-badge">{order.workCenter}</span></td>
-                      <td>{order.qty}</td>
-                      <td>{order.owner}</td>
-                      <td>
-                        <span className={`status-pill ${
-                          order.status === 'Done' ? 'status-active' :
-                          order.status === 'Draft' ? 'status-pending-badge' :
-                          order.status === 'Cancelled' ? 'status-warning-badge' : 'status-active'
-                        }`} style={{ background: order.status === 'In Progress' ? '#dbeafe' : '', color: order.status === 'In Progress' ? '#1e40af' : '' }}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="btn btn-outline btn-small-table" onClick={() => handleEditOrder(order)}>
-                          Manage
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  filteredOrders.map(order => {
+                    const compStatus = getOrderComponentStatus(order);
+                    return (
+                      <tr key={order.id}>
+                        <td>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedIds.includes(order.id)}
+                            onChange={() => handleSelectRow(order.id)}
+                          />
+                        </td>
+                        <td className="order-id-cell" style={{ fontWeight: '700' }}>{order.id}</td>
+                        <td>{order.date}</td>
+                        <td style={{ fontWeight: '600' }}>{order.product}</td>
+                        <td>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            background: compStatus === 'Available' ? '#d1fae5' : '#fee2e2',
+                            color: compStatus === 'Available' ? '#065f46' : '#991b1b'
+                          }}>
+                            <span style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              backgroundColor: compStatus === 'Available' ? '#10b981' : '#ef4444'
+                            }}></span>
+                            {compStatus}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: '600' }}>{parseFloat(order.qty).toFixed(2)}</td>
+                        <td><span className="badge category-badge">{order.unit}</span></td>
+                        <td>
+                          <span className={`status-pill ${
+                            order.status === 'Done' ? 'status-active' :
+                            order.status === 'Draft' ? 'status-pending-badge' :
+                            order.status === 'Cancelled' ? 'status-warning-badge' : 'status-active'
+                          }`} style={{ background: order.status === 'In Progress' ? '#dbeafe' : '', color: order.status === 'In Progress' ? '#1e40af' : '' }}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td>
+                          <button className="btn btn-outline btn-small-table" onClick={() => handleEditOrder(order)}>
+                            Manage
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                    <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                       No manufacturing orders found matching your search.
                     </td>
                   </tr>
@@ -426,7 +605,7 @@ function ManufacturingOrders({ onNavigate }) {
                         <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{order.date}</span>
                       </div>
                       <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{order.product}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>{order.workCenter}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{order.workCenter}</div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.02)', paddingTop: '8px' }}>
                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Qty: {order.qty}</span>
                         <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)' }}>{order.owner}</span>
@@ -448,36 +627,106 @@ function ManufacturingOrders({ onNavigate }) {
       {/* 3. FORM VIEW */}
       {activeView === 'form' && (
         <div className="card glass" style={{ padding: '36px', boxSizing: 'border-box' }}>
+          
+          {/* Header Controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border)', paddingBottom: '16px', marginBottom: '24px' }}>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
-              {selectedOrder ? `Edit Manufacturing Order ${selectedOrder.id}` : 'New Manufacturing Order'}
-            </h3>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button 
+                type="button" 
+                className="btn btn-outline" 
+                onClick={() => { stopTimer(); setActiveView('list'); }}
+                style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back
+              </button>
+              
+              {orderStatus === 'Draft' && (
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={handleConfirmOrder}
+                  style={{ marginTop: 0, borderColor: 'var(--primary)', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Confirm
+                </button>
+              )}
+
+              {orderStatus === 'Confirmed' && (
+                <button 
+                  type="button" 
+                  className="btn" 
+                  onClick={handleStartProduction}
+                  style={{ marginTop: 0, background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Start
+                </button>
+              )}
+
+              {orderStatus === 'In Progress' && (
+                <button 
+                  type="button" 
+                  className="btn" 
+                  onClick={handleMarkAsDone}
+                  style={{ marginTop: 0, background: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  Produce / Done
+                </button>
+              )}
+
+              {(orderStatus === 'Draft' || orderStatus === 'Confirmed' || orderStatus === 'In Progress') && (
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={handleCancelOrder}
+                  style={{ marginTop: 0, borderColor: '#ef4444', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Cancel
+                </button>
+              )}
+            </div>
+            
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span className="status-pill status-active" style={{ fontSize: '13px', fontWeight: '800', padding: '6px 12px', background: '#e0f2fe', color: '#0369a1', borderRadius: '12px' }}>
+                {selectedOrder ? selectedOrder.id : 'MO-XXXXXX (New)'}
+              </span>
               <button 
                 type="button" 
                 className="btn btn-outline" 
                 onClick={() => onNavigate('audit-logs', 'Manufacturing')}
                 style={{ marginTop: 0, padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                📋 Logs
+                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Logs
               </button>
-              <span className={`status-pill ${
-                orderStatus === 'Done' ? 'status-active' :
-                orderStatus === 'Draft' ? 'status-pending-badge' :
-                orderStatus === 'Cancelled' ? 'status-warning-badge' : 'status-active'
-              }`}>
-                Status: {orderStatus}
-              </span>
             </div>
           </div>
 
+          {/* Form Content */}
           <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
               
               {/* BOM Selector */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Select BOM Template (Auto-populates fields)</label>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Select BOM Template</label>
                 <select
                   className="filter-control-select"
                   value={selectedBomId}
@@ -508,34 +757,23 @@ function ManufacturingOrders({ onNavigate }) {
               {/* Quantity */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
                 <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Quantity to Produce *</label>
-                <input
-                  type="number"
-                  className="filter-control-input"
-                  value={qty}
-                  onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  disabled={orderStatus !== 'Draft'}
-                  min={1}
-                  required
-                />
-              </div>
-
-              {/* Supervisor */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Supervisor</label>
-                <select
-                  className="filter-control-select"
-                  value={supervisor}
-                  onChange={(e) => setSupervisor(e.target.value)}
-                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                >
-                  {SUPERVISOR_LIST.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="number"
+                    className="filter-control-input"
+                    value={qty}
+                    onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                    disabled={orderStatus !== 'Draft'}
+                    min={1}
+                    style={{ flex: 1 }}
+                    required
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Units</span>
+                </div>
               </div>
 
               {/* Scheduled Date */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
                 <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Scheduled Date *</label>
                 <input
                   type="date"
@@ -545,6 +783,21 @@ function ManufacturingOrders({ onNavigate }) {
                   disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
                   required
                 />
+              </div>
+
+              {/* Supervisor / Assignee */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', gridColumn: 'span 2' }}>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Assignee / Supervisor</label>
+                <select
+                  className="filter-control-select"
+                  value={assignee}
+                  onChange={(e) => setAssignee(e.target.value)}
+                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                >
+                  {ASSIGNEE_LIST.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
 
             </div>
@@ -565,23 +818,23 @@ function ManufacturingOrders({ onNavigate }) {
                   fontSize: '15px'
                 }}
               >
-                Components to Consume
+                Components
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('operations')}
+                onClick={() => setActiveTab('work-orders')}
                 style={{
                   padding: '12px 24px',
                   background: 'none',
                   border: 'none',
-                  borderBottom: activeTab === 'operations' ? '3px solid var(--primary)' : 'none',
+                  borderBottom: activeTab === 'work-orders' ? '3px solid var(--primary)' : 'none',
                   fontWeight: '700',
-                  color: activeTab === 'operations' ? 'var(--primary)' : 'var(--text-secondary)',
+                  color: activeTab === 'work-orders' ? 'var(--primary)' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   fontSize: '15px'
                 }}
               >
-                Work Orders / Operations
+                Work Orders
               </button>
             </div>
 
@@ -592,34 +845,97 @@ function ManufacturingOrders({ onNavigate }) {
                   <thead>
                     <tr>
                       <th>Component</th>
-                      <th style={{ width: '180px' }}>To Consume</th>
-                      <th style={{ width: '120px' }}>Units</th>
+                      <th style={{ width: '130px' }}>Availability</th>
+                      <th style={{ width: '120px' }}>To Consume</th>
+                      <th style={{ width: '120px' }}>Consumed</th>
+                      <th style={{ width: '100px' }}>Units</th>
                       {orderStatus === 'Draft' && <th style={{ width: '60px' }}></th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {components.map((line, idx) => (
-                      <tr key={line.id}>
-                        <td>{line.name}</td>
-                        <td>{line.qty * qty}</td>
-                        <td style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>{line.unit}</td>
-                        {orderStatus === 'Draft' && (
+                    {components.map((line, idx) => {
+                      const available = isComponentAvailable(line);
+                      return (
+                        <tr key={line.id}>
                           <td>
-                            <button
-                              type="button"
-                              className="btn btn-outline"
-                              onClick={() => handleRemoveComponent(line.id)}
-                              style={{ padding: '6px 10px', borderColor: '#ef4444', color: '#ef4444' }}
-                            >
-                              🗑️
-                            </button>
+                            {orderStatus === 'Draft' ? (
+                              <select
+                                className="filter-control-select"
+                                value={line.name}
+                                onChange={(e) => handleUpdateComponentLine(line.id, 'name', e.target.value)}
+                                style={{ width: '100%' }}
+                              >
+                                {COMPONENT_OPTIONS.map(cName => (
+                                  <option key={cName} value={cName}>{cName}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <span>{line.name}</span>
+                            )}
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          <td>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '2px 8px',
+                              borderRadius: '10px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              background: available ? '#e6fffa' : '#fef2f2',
+                              color: available ? '#047857' : '#b91c1c'
+                            }}>
+                              <span style={{
+                                width: '5px',
+                                height: '5px',
+                                borderRadius: '50%',
+                                backgroundColor: available ? '#059669' : '#dc2626'
+                              }}></span>
+                              {available ? 'Available' : 'Not Available'}
+                            </span>
+                          </td>
+                          <td>
+                            {orderStatus === 'Draft' ? (
+                              <input
+                                type="number"
+                                className="filter-control-input"
+                                value={line.qty}
+                                onChange={(e) => handleUpdateComponentLine(line.id, 'qty', Math.max(1, parseInt(e.target.value) || 1))}
+                                min={1}
+                              />
+                            ) : (
+                              <span>{line.qty * qty}</span>
+                            )}
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="filter-control-input"
+                              value={line.consumed || 0}
+                              onChange={(e) => handleUpdateComponentLine(line.id, 'consumed', Math.max(0, parseInt(e.target.value) || 0))}
+                              disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                              min={0}
+                            />
+                          </td>
+                          <td style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>{line.unit}</td>
+                          {orderStatus === 'Draft' && (
+                            <td>
+                              <button
+                                type="button"
+                                className="btn btn-outline"
+                                onClick={() => handleRemoveComponentLine(line.id)}
+                                style={{ padding: '6px 10px', borderColor: '#ef4444', color: '#ef4444' }}
+                              >
+                                🗑️
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                     {components.length === 0 && (
                       <tr>
-                        <td colSpan={orderStatus === 'Draft' ? 4 : 3} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)' }}>
+                        <td colSpan={orderStatus === 'Draft' ? 6 : 5} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)' }}>
                           No components configured. Select a BOM template to load components.
                         </td>
                       </tr>
@@ -630,39 +946,124 @@ function ManufacturingOrders({ onNavigate }) {
                   <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={handleAddComponent}
+                    onClick={handleAddComponentLine}
                     style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}
                   >
-                    ＋ Add raw component
+                    ＋ Add a product
                   </button>
                 )}
               </div>
             )}
 
-            {/* Tab Contents: Operations */}
-            {activeTab === 'operations' && (
+            {/* Tab Contents: Work Orders */}
+            {activeTab === 'work-orders' && (
               <div style={{ textAlign: 'left' }}>
                 <table className="erp-dashboard-table" style={{ marginTop: '10px' }}>
                   <thead>
                     <tr>
-                      <th>Operation</th>
+                      <th>Operations</th>
                       <th>Work Center</th>
-                      <th style={{ width: '180px' }}>Expected Duration (min)</th>
+                      <th style={{ width: '130px' }}>Duration (min)</th>
+                      <th style={{ width: '130px' }}>Real Duration</th>
+                      <th style={{ width: '100px' }}>Actions</th>
                       {orderStatus === 'Draft' && <th style={{ width: '60px' }}></th>}
                     </tr>
                   </thead>
                   <tbody>
                     {operations.map((line, idx) => (
                       <tr key={line.id}>
-                        <td>{line.operation}</td>
-                        <td><span className="badge category-badge">{line.workCenter}</span></td>
-                        <td>{line.duration}</td>
+                        <td>
+                          {orderStatus === 'Draft' ? (
+                            <input
+                              type="text"
+                              className="filter-control-input"
+                              value={line.operation}
+                              onChange={(e) => handleUpdateOperationLine(line.id, 'operation', e.target.value)}
+                              placeholder="Operation details"
+                            />
+                          ) : (
+                            <span>{line.operation}</span>
+                          )}
+                        </td>
+                        <td>
+                          {orderStatus === 'Draft' ? (
+                            <select
+                              className="filter-control-select"
+                              value={line.workCenter}
+                              onChange={(e) => handleUpdateOperationLine(line.id, 'workCenter', e.target.value)}
+                              style={{ width: '100%' }}
+                            >
+                              {WORK_CENTER_LIST.map(wc => (
+                                <option key={wc} value={wc}>{wc}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="badge category-badge">{line.workCenter}</span>
+                          )}
+                        </td>
+                        <td>
+                          {orderStatus === 'Draft' ? (
+                            <input
+                              type="number"
+                              className="filter-control-input"
+                              value={line.duration}
+                              onChange={(e) => handleUpdateOperationLine(line.id, 'duration', Math.max(1, parseInt(e.target.value) || 1))}
+                              min={1}
+                            />
+                          ) : (
+                            <span>{line.duration} min</span>
+                          )}
+                        </td>
+                        <td style={{ fontFamily: 'monospace', fontWeight: '700', color: activeTimerId === line.id ? '#2563eb' : 'var(--text-primary)' }}>
+                          {activeTimerId === line.id ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="spin-icon">⏳</span>
+                              {formatRealDuration(line.realDuration)}
+                            </span>
+                          ) : (
+                            <span>{formatRealDuration(line.realDuration)}</span>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={() => toggleOperationTimer(line.id)}
+                            disabled={orderStatus !== 'In Progress'}
+                            style={{ 
+                              padding: '4px 10px', 
+                              fontSize: '11px',
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              borderColor: activeTimerId === line.id ? '#f59e0b' : 'var(--primary)',
+                              color: activeTimerId === line.id ? '#d97706' : 'var(--primary)'
+                            }}
+                          >
+                            {activeTimerId === line.id ? (
+                              <>
+                                <svg style={{ width: '12px', height: '12px' }} fill="currentColor" viewBox="0 0 24 24">
+                                  <rect x="6" y="4" width="4" height="16" />
+                                  <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                                Pause
+                              </>
+                            ) : (
+                              <>
+                                <svg style={{ width: '12px', height: '12px' }} fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                                Start
+                              </>
+                            )}
+                          </button>
+                        </td>
                         {orderStatus === 'Draft' && (
                           <td>
                             <button
                               type="button"
                               className="btn btn-outline"
-                              onClick={() => handleRemoveOperation(line.id)}
+                              onClick={() => handleRemoveOperationLine(line.id)}
                               style={{ padding: '6px 10px', borderColor: '#ef4444', color: '#ef4444' }}
                             >
                               🗑️
@@ -673,8 +1074,8 @@ function ManufacturingOrders({ onNavigate }) {
                     ))}
                     {operations.length === 0 && (
                       <tr>
-                        <td colSpan={orderStatus === 'Draft' ? 4 : 3} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)' }}>
-                          No operations configured. Select a BOM template to load operations routing.
+                        <td colSpan={orderStatus === 'Draft' ? 6 : 5} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)' }}>
+                          No operations configured. Select a BOM template to load operations.
                         </td>
                       </tr>
                     )}
@@ -684,79 +1085,33 @@ function ManufacturingOrders({ onNavigate }) {
                   <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={handleAddOperation}
+                    onClick={handleAddOperationLine}
                     style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}
                   >
-                    ＋ Add operation line
+                    ＋ Add a line
                   </button>
                 )}
               </div>
             )}
 
-            {/* BUTTON BAR */}
-            <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                  style={{ marginTop: 0 }}
-                >
-                  Save Draft
-                </button>
-                
-                {orderStatus === 'Draft' && (
-                  <button 
-                    type="button" 
-                    className="btn btn-outline" 
-                    onClick={handleConfirmOrder}
-                    style={{ marginTop: 0, borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                  >
-                    Confirm Order
-                  </button>
-                )}
-
-                {orderStatus === 'Confirmed' && (
-                  <button 
-                    type="button" 
-                    className="btn" 
-                    onClick={handleStartProduction}
-                    style={{ marginTop: 0, background: '#2563eb', color: '#fff' }}
-                  >
-                    Start Production
-                  </button>
-                )}
-
-                {orderStatus === 'In Progress' && (
-                  <button 
-                    type="button" 
-                    className="btn" 
-                    onClick={handleMarkAsDone}
-                    style={{ marginTop: 0, background: '#10b981', color: '#fff' }}
-                  >
-                    Mark as Done
-                  </button>
-                )}
-
-                {(orderStatus === 'Draft' || orderStatus === 'Confirmed' || orderStatus === 'In Progress') && (
-                  <button 
-                    type="button" 
-                    className="btn btn-outline" 
-                    onClick={handleCancelOrder}
-                    style={{ marginTop: 0, borderColor: '#ef4444', color: '#ef4444' }}
-                  >
-                    Cancel Order
-                  </button>
-                )}
-              </div>
-
+            {/* Save Buttons Panel */}
+            <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button 
                 type="button" 
                 className="btn btn-outline" 
-                onClick={() => setActiveView('list')}
+                onClick={() => { stopTimer(); setActiveView('list'); }}
                 style={{ marginTop: 0 }}
               >
                 Close
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary"
+                onClick={handleSaveForm}
+                disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
+              >
+                Save
               </button>
             </div>
 
