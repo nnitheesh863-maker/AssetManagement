@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-function Profile({ currentUser }) {
+function Profile({ currentUser, onProfileUpdate }) {
   // Local storage key specific to this logged in user
   const storageKey = `assetflow_profile_${currentUser.loginId}`;
 
@@ -12,6 +12,7 @@ function Profile({ currentUser }) {
   
   // Feedback states
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Read-only fields from currentUser session
@@ -50,7 +51,34 @@ function Profile({ currentUser }) {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhoto(reader.result);
+        const img = new Image();
+        img.src = reader.result;
+        img.onload = () => {
+          // Compress image using HTML Canvas
+          const maxDim = 300; // max width/height for profile thumbnail
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Get highly compressed JPEG version
+          const compressed = canvas.toDataURL('image/jpeg', 0.7);
+          setPhoto(compressed);
+        };
       };
       reader.readAsDataURL(file);
     }
@@ -61,6 +89,7 @@ function Profile({ currentUser }) {
     e.preventDefault();
     setIsSaving(true);
     setSuccessMessage('');
+    setErrorMessage('');
 
     const profileData = {
       name,
@@ -70,11 +99,24 @@ function Profile({ currentUser }) {
     };
 
     setTimeout(() => {
-      localStorage.setItem(storageKey, JSON.stringify(profileData));
-      setIsSaving(false);
-      setSuccessMessage('Profile details updated successfully!');
-      // Clear toast after 3 seconds
-      setTimeout(() => setSuccessMessage(''), 3000);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(profileData));
+        setIsSaving(false);
+        setSuccessMessage('Profile details updated successfully!');
+        if (onProfileUpdate) {
+          onProfileUpdate(photo);
+        }
+        // Clear toast after 3 seconds
+        setTimeout(() => setSuccessMessage(''), 3000);
+      } catch (err) {
+        console.error('Error saving profile data', err);
+        setIsSaving(false);
+        if (err.name === 'QuotaExceededError' || err.message.includes('quota')) {
+          setErrorMessage('Failed to save: Profile photo is too large. Please upload a smaller image.');
+        } else {
+          setErrorMessage('Failed to save profile changes. Please try again.');
+        }
+      }
     }, 600);
   };
 
@@ -93,6 +135,12 @@ function Profile({ currentUser }) {
         {successMessage && (
           <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)', padding: '12px 18px', borderRadius: '8px', marginBottom: '20px', fontSize: '16px', fontWeight: '600', textAlign: 'left' }}>
             {successMessage}
+          </div>
+        )}
+
+        {errorMessage && (
+          <div style={{ background: 'var(--error-bg)', border: '1px solid var(--error)', color: 'var(--error)', padding: '12px 18px', borderRadius: '8px', marginBottom: '20px', fontSize: '16px', fontWeight: '600', textAlign: 'left' }}>
+            {errorMessage}
           </div>
         )}
 

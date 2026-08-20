@@ -12,7 +12,21 @@ const CATEGORY_LIST = [
 ];
 
 function Products() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => {
+    const saved = localStorage.getItem('assetflow_products');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 'PROD-001', name: 'Deluxe Oak Dining Table', category: 'Custom Dining', salesPrice: 1200, costPrice: 800 },
+      { id: 'PROD-002', name: 'Ash Wood Chair Pack', category: 'Dining Room', salesPrice: 380, costPrice: 250 },
+      { id: 'PROD-003', name: 'Beech Wood Bedframe', category: 'Bedroom Series', salesPrice: 1100, costPrice: 750 },
+      { id: 'PROD-004', name: 'Cedar Garden Table', category: 'Patio Series', salesPrice: 720, costPrice: 480 },
+      { id: 'PROD-005', name: 'Cherry Wood Bookshelf', category: 'Living Room', salesPrice: 950, costPrice: 620 },
+      { id: 'PROD-006', name: 'Birch Coffee Table', category: 'Living Room', salesPrice: 410, costPrice: 270 },
+      { id: 'PROD-007', name: 'Walnut Sideboard', category: 'Custom Dining', salesPrice: 1500, costPrice: 1000 },
+      { id: 'PROD-008', name: 'Door Frames', category: 'Pre-Production', salesPrice: 150, costPrice: 90 },
+      { id: 'PROD-009', name: 'Lighting Frame', category: 'Assembly Line', salesPrice: 200, costPrice: 120 }
+    ];
+  });
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedProduct, setSelectedProduct] = useState(null); // null for new
   const [searchTerm, setSearchTerm] = useState('');

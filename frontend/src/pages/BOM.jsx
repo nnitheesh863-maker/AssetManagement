@@ -33,7 +33,42 @@ const WORK_CENTER_LIST = [
 ];
 
 function BOM({ onNavigate }) {
-  const [boms, setBoms] = useState([]);
+  const [boms, setBoms] = useState(() => {
+    const saved = localStorage.getItem('assetflow_boms');
+    if (saved) return JSON.parse(saved);
+    return [
+      {
+        id: 'BOM-000001',
+        reference: 'DF-01',
+        product: 'Door Frames',
+        qty: 10.0,
+        unit: 'Units',
+        components: [
+          { id: 1, name: 'Raw Lumber', qty: 15, unit: 'Units' },
+          { id: 2, name: 'Wood Glue', qty: 2, unit: 'Units' }
+        ],
+        workOrders: [
+          { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45 },
+          { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60 }
+        ]
+      },
+      {
+        id: 'BOM-000002',
+        reference: 'LF-02',
+        product: 'Lighting Frame',
+        qty: 5.0,
+        unit: 'Units',
+        components: [
+          { id: 1, name: 'Pendant lights', qty: 5, unit: 'Units' },
+          { id: 2, name: 'Drawer handles', qty: 10, unit: 'Units' }
+        ],
+        workOrders: [
+          { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30 },
+          { id: 2, operation: 'Finishing', workCenter: 'Finishing Line', duration: 20 }
+        ]
+      }
+    ];
+  });
   const [activeView, setActiveView] = useState('list'); // 'list' | 'form'
   const [selectedBom, setSelectedBom] = useState(null); // null for new
   const [searchTerm, setSearchTerm] = useState('');

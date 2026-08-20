@@ -79,6 +79,25 @@ function App() {
     setCurrentUser(null);
   };
 
+  const [profilePhoto, setProfilePhoto] = useState('');
+
+  useEffect(() => {
+    if (currentUser) {
+      const saved = localStorage.getItem(`assetflow_profile_${currentUser.loginId}`);
+      if (saved) {
+        try {
+          setProfilePhoto(JSON.parse(saved).photo || '');
+        } catch (e) {
+          setProfilePhoto('');
+        }
+      } else {
+        setProfilePhoto('');
+      }
+    } else {
+      setProfilePhoto('');
+    }
+  }, [currentUser]);
+
   const [auditLogModuleFilter, setAuditLogModuleFilter] = useState('All Modules');
 
   const handleNavigation = (view, filter = 'All Modules') => {
@@ -107,6 +126,7 @@ function App() {
           onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           onSearchChange={setSearchVal}
           searchVal={searchVal}
+          profilePhoto={profilePhoto}
         />
       )}
 
@@ -157,7 +177,12 @@ function App() {
               {currentView === 'bom' && <BOM onNavigate={handleNavigation} />}
               {currentView === 'products' && <Products />}
               {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} />}
-              {currentView === 'profile' && <Profile currentUser={currentUser} />}
+              {currentView === 'profile' && (
+                <Profile 
+                  currentUser={currentUser} 
+                  onProfileUpdate={(newPhoto) => setProfilePhoto(newPhoto)} 
+                />
+              )}
               {currentView === 'settings' && <Settings />}
               {currentView === 'notifications' && <Notifications />}
             </>

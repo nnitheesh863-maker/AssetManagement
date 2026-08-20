@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchChange, searchVal }) {
+function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchChange, searchVal, profilePhoto }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const getAvatarInitials = () => {
@@ -56,7 +56,11 @@ function Navbar({ currentUser, onLogout, onNavigate, onToggleSidebar, onSearchCh
           {/* User avatar menu */}
           <div className="nav-user-dropdown-container">
             <div className="nav-user-info-avatar" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
-              <div className="avatar nav-avatar-circle">{getAvatarInitials()}</div>
+              {profilePhoto ? (
+                <img src={profilePhoto} className="avatar nav-avatar-circle" alt="User Avatar" style={{ objectFit: 'cover' }} />
+              ) : (
+                <div className="avatar nav-avatar-circle">{getAvatarInitials()}</div>
+              )}
               <div className="nav-user-meta">
                 <span className="nav-username-text">{currentUser.loginId}</span>
                 <span className="nav-role-text">{currentUser.role === 'System Administrator' ? 'Admin' : 'User'}</span>

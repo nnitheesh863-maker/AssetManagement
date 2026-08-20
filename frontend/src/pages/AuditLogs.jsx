@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 
 function AuditLogs({ defaultModuleFilter = 'All Modules' }) {
-  const [allLogs, setAllLogs] = useState([]);
+  const [allLogs, setAllLogs] = useState(() => [
+    { datetime: '26 May 2026, 11:42 AM', user: 'Amit Sharma', module: 'Sales', type: 'Product', id: 'PROD-0034', action: 'Updated', field: 'Sales Price', oldVal: '₹120.00', newVal: '₹135.00' },
+    { datetime: '26 May 2026, 11:15 AM', user: 'Neha Verma', module: 'Sales', type: 'Item', id: 'ITEM-0102', action: 'Updated', field: 'Cost Price', oldVal: '₹80.00', newVal: '₹85.00' },
+    { datetime: '26 May 2026, 10:55 AM', user: 'Ravi Patel', module: 'Purchase', type: 'Purchase Order', id: 'PO-2026-087', action: 'Created', field: '-', oldVal: '-', newVal: '-' },
+    { datetime: '26 May 2026, 10:20 AM', user: 'Amit Sharma', module: 'Purchase', type: 'Item', id: 'ITEM-0456', action: 'Updated', field: 'Cost Price', oldVal: '₹45.00', newVal: '₹50.00' },
+    { datetime: '26 May 2026, 09:48 AM', user: 'Meera Singh', module: 'BOM', type: 'BOM', id: 'BOM-2026-015', action: 'Created', field: '-', oldVal: '-', newVal: '-' },
+    { datetime: '26 May 2026, 09:30 AM', user: 'Ravi Patel', module: 'Sales', type: 'Item', id: 'ITEM-0102', action: 'Updated', field: 'Sales Price', oldVal: '₹110.00', newVal: '₹120.00' },
+    { datetime: '26 May 2026, 09:10 AM', user: 'Neha Verma', module: 'Purchase', type: 'Product', id: 'PROD-0021', action: 'Deleted', field: '-', oldVal: '-', newVal: '-' },
+    { datetime: '26 May 2026, 08:45 AM', user: 'Amit Sharma', module: 'Manufacturing', type: 'Manufacturing Order', id: 'MO-2026-022', action: 'Updated', field: 'Demand', oldVal: '80', newVal: '100' },
+    { datetime: '26 May 2026, 08:30 AM', user: 'Meera Singh', module: 'Manufacturing', type: 'Material Consumption', id: 'MC-2026-055', action: 'Updated', field: 'Consumed Qty', oldVal: '45', newVal: '50' }
+  ]);
   const API_BASE_URL = 'http://localhost:5000/api';
 
   useEffect(() => {

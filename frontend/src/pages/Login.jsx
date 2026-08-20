@@ -147,7 +147,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
         {loginType === 'user' && (
           <div className="form-fade-in">
             <h2 className="form-heading-premium">Login for System User</h2>
-            <form onSubmit={handleUserLogin}>
+            <form onSubmit={handleUserLogin} autoComplete="off">
               <div className="input-group-premium">
                 <label htmlFor="loginId">Login Id</label>
                 <div className="input-with-icon">
@@ -161,6 +161,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
                     onChange={(e) => setLoginId(e.target.value)}
                     placeholder="Enter your Login Id"
                     required
+                    autoComplete="off"
                   />
                 </div>
               </div>
@@ -178,6 +179,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     required
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
@@ -233,7 +235,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
         {loginType === 'admin' && (
           <div className="form-fade-in">
             <h2 className="form-heading-premium admin-title-premium">Login for System Administrator</h2>
-            <form onSubmit={handleAdminLogin}>
+            <form onSubmit={handleAdminLogin} autoComplete="off">
               <div className="input-group-premium">
                 <label htmlFor="adminLoginId">Login Id</label>
                 <div className="input-with-icon">
@@ -247,6 +249,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
                     onChange={(e) => setLoginId(e.target.value)}
                     placeholder="Enter Administrator ID"
                     required
+                    autoComplete="off"
                   />
                 </div>
               </div>
@@ -264,6 +267,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter Admin Password"
                     required
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
@@ -320,7 +324,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
           <div className="form-fade-in">
             <h2 className="form-heading-premium">Forgot Password</h2>
             <p className="forgot-desc-premium">Enter your Login ID to receive password reset instructions.</p>
-            <form onSubmit={handleForgotPassword}>
+            <form onSubmit={handleForgotPassword} autoComplete="off">
               <div className="input-group-premium">
                 <label htmlFor="forgotLoginId">Login Id</label>
                 <div className="input-with-icon">
@@ -334,6 +338,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
                     onChange={(e) => setForgotLoginId(e.target.value)}
                     placeholder="Enter your Login ID"
                     required
+                    autoComplete="off"
                   />
                 </div>
               </div>

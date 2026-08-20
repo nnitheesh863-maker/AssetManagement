@@ -9,10 +9,10 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   // API states
-  const [salesOrders, setSalesOrders] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [manufacturingOrders, setManufacturingOrders] = useState([]);
-  const [activities, setActivities] = useState([]);
+  const [salesOrders, setSalesOrders] = useState(mockDashboardData.salesOrders);
+  const [purchaseOrders, setPurchaseOrders] = useState(mockDashboardData.purchaseOrders);
+  const [manufacturingOrders, setManufacturingOrders] = useState(mockDashboardData.manufacturingOrders);
+  const [activities, setActivities] = useState(mockDashboardData.recentActivities);
   const [loading, setLoading] = useState(true);
 
   const API_BASE_URL = 'http://localhost:5000/api';
@@ -242,32 +242,40 @@ function Dashboard({ currentUser, onNavigate, searchVal }) {
   // Resolve activities fallback dynamically
   const displayActivities = activities.length > 0 ? activities : mockDashboardData.recentActivities;
 
-  if (loading) {
-    return (
-      <div className="page-content animated fadeIn" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <style>{`
-          @keyframes customSpin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            border: '3px solid rgba(207, 142, 109, 0.1)',
-            borderTopColor: 'var(--primary)',
-            borderRadius: '50%',
-            animation: 'customSpin 1s linear infinite'
-          }}></div>
-          <span style={{ fontSize: '15px', color: 'var(--text-secondary)', fontWeight: '600' }}>Connecting to ERP Engine...</span>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="page-content animated fadeIn">
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          padding: '6px 14px', 
+          borderRadius: '20px', 
+          background: loading ? 'rgba(207, 142, 109, 0.12)' : 'rgba(93, 112, 82, 0.12)', 
+          border: loading ? '1px solid rgba(207, 142, 109, 0.3)' : '1px solid rgba(93, 112, 82, 0.3)',
+          color: loading ? 'var(--primary)' : 'var(--success)',
+          fontSize: '13px',
+          fontWeight: '700',
+          transition: 'all 0.3s ease'
+        }}>
+          <span style={{ 
+            width: '8px', 
+            height: '8px', 
+            borderRadius: '50%', 
+            background: loading ? 'var(--primary)' : 'var(--success)',
+            display: 'inline-block',
+            animation: loading ? 'pulse 1.5s infinite' : 'none'
+          }}></span>
+          <style>{`
+            @keyframes pulse {
+              0% { opacity: 0.3; }
+              50% { opacity: 1; }
+              100% { opacity: 0.3; }
+            }
+          `}</style>
+          <span>{loading ? 'Connecting to ERP Engine...' : 'ERP Connected (Live)'}</span>
+        </div>
+      </div>
 
       {/* 1. SALES ORDERS PANEL */}
       <div className="card glass erp-dashboard-panel hub-red">

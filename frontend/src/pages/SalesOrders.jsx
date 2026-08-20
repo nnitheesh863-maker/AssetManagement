@@ -16,7 +16,22 @@ const PRODUCT_PRICES = {
 const SALESPERSON_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
 
 function SalesOrders({ onNavigate }) {
-  const [salesOrders, setSalesOrders] = useState([]);
+  const [salesOrders, setSalesOrders] = useState(() => {
+    const saved = localStorage.getItem('assetflow_sales_orders');
+    if (saved) return JSON.parse(saved);
+    return mockDashboardData.salesOrders.map(o => ({
+      id: o.id,
+      date: o.date,
+      customer: o.owner === 'admin123' ? 'System Administrator Client' : 'Mahesh Gupta Furniture',
+      address: 'Colaba, Mumbai, 400001',
+      salesperson: 'Amit Sharma',
+      product: o.name,
+      price: parseInt(o.amount.replace(/[^0-9]/g, '')) || 850,
+      qty: 1,
+      delivered: o.status === 'Delivered' ? 1 : 0,
+      status: o.status
+    }));
+  });
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
   const [searchTerm, setSearchTerm] = useState('');

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { mockDashboardData } from '../data/mockData';
 
 const ASSIGNEE_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
 
@@ -22,8 +23,84 @@ const WORK_CENTER_LIST = [
 ];
 
 function ManufacturingOrders({ onNavigate }) {
-  const [mfgOrders, setMfgOrders] = useState([]);
-  const [boms, setBoms] = useState([]);
+  const [mfgOrders, setMfgOrders] = useState(() => {
+    const savedOrders = localStorage.getItem('assetflow_manufacturing_orders');
+    if (savedOrders) return JSON.parse(savedOrders);
+    return [
+      {
+        id: 'MO-000001',
+        bomId: 'BOM-000001',
+        product: 'Door Frames',
+        qty: 10.0,
+        unit: 'Units',
+        workCenter: 'Pre-Production',
+        date: '2026-08-20',
+        owner: 'Amit Sharma',
+        status: 'Confirmed',
+        components: [
+          { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
+          { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
+        ],
+        workOrders: [
+          { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
+          { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
+        ]
+      },
+      {
+        id: 'MO-000002',
+        bomId: '',
+        product: 'Lighting Frame',
+        qty: 5.0,
+        unit: 'Units',
+        workCenter: 'Assembly Line',
+        date: '2026-08-19',
+        owner: 'Neha Verma',
+        status: 'Draft',
+        components: [
+          { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
+        ],
+        workOrders: [
+          { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
+        ]
+      }
+    ];
+  });
+  const [boms, setBoms] = useState(() => {
+    const savedBoms = localStorage.getItem('assetflow_boms');
+    if (savedBoms) return JSON.parse(savedBoms);
+    return [
+      {
+        id: 'BOM-000001',
+        reference: 'DF-01',
+        product: 'Door Frames',
+        qty: 10.0,
+        unit: 'Units',
+        components: [
+          { id: 1, name: 'Raw Lumber', qty: 15, unit: 'Units' },
+          { id: 2, name: 'Wood Glue', qty: 2, unit: 'Units' }
+        ],
+        workOrders: [
+          { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45 },
+          { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60 }
+        ]
+      },
+      {
+        id: 'BOM-000002',
+        reference: 'LF-02',
+        product: 'Lighting Frame',
+        qty: 5.0,
+        unit: 'Units',
+        components: [
+          { id: 1, name: 'Pendant lights', qty: 5, unit: 'Units' },
+          { id: 2, name: 'Drawer handles', qty: 10, unit: 'Units' }
+        ],
+        workOrders: [
+          { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30 },
+          { id: 2, operation: 'Finishing', workCenter: 'Finishing Line', duration: 20 }
+        ]
+      }
+    ];
+  });
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
   const [searchTerm, setSearchTerm] = useState('');

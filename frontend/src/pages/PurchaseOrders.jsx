@@ -17,7 +17,22 @@ const RESPONSIBLE_LIST = ['Meera Sen', 'Amit Sharma', 'Ravi Verma', 'Neha Verma'
 const VENDOR_LIST = ['Raw Teak Supplier Co.', 'Hardware Supplies Depot', 'Global Glass & Lighting Inc.'];
 
 function PurchaseOrders({ onNavigate }) {
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [purchaseOrders, setPurchaseOrders] = useState(() => {
+    const saved = localStorage.getItem('assetflow_purchase_orders');
+    if (saved) return JSON.parse(saved);
+    return mockDashboardData.purchaseOrders.map(o => ({
+      id: o.id,
+      date: o.date,
+      vendor: VENDOR_LIST[0],
+      address: 'Goregaon East, Mumbai, 400063',
+      agent: o.owner,
+      product: o.name,
+      price: parseInt(o.amount.replace(/[^0-9]/g, '')) || 120,
+      qty: 10,
+      received: o.status === 'Received' ? 10 : 0,
+      status: o.status === 'Received' ? 'Fully Received' : o.status
+    }));
+  });
   const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
   const [searchTerm, setSearchTerm] = useState('');
