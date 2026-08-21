@@ -63,13 +63,18 @@ const manufacturingOrderSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   date: { type: String },
   product: { type: String },
-  bom: { type: String },
-  qty: { type: Number },
-  units: { type: String },
-  assignee: { type: String },
-  status: { type: String },
+  bom: { type: String, default: '' },
+  qty: { type: Number, default: 0 },
+  units: { type: String, default: 'Units' },
+  assignee: { type: String, default: '' },
+  status: { type: String, default: 'Draft' },
   components: { type: Array, default: [] },
-  operations: { type: Array, default: [] }
+  operations: { type: Array, default: [] },
+  expected_completion: { type: String, default: '' },
+  notes: { type: String, default: '' },
+  quality_status: { type: String, default: '' },
+  quality_notes: { type: String, default: '' },
+  owner: { type: String, default: '' }
 });
 
 // Audit Log Schema

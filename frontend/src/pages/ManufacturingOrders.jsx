@@ -1,1398 +1,1094 @@
-import React, { useState, useEffect } from 'react';
-import { mockDashboardData } from '../data/mockData';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
-const ASSIGNEE_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
+const API = 'http://127.0.0.1:5000/api';
 
-// Pre-seeded components for selection
-const COMPONENT_OPTIONS = [
-  'Teak Veneer',
-  'Raw Lumber',
-  'Drawer handles',
-  'Wood Glue',
-  'Pendant lights',
-  'Heavy Duty Wood Screws',
-  'Sanding Discs Box',
-  'Oak Wood Veneer Rolls'
+const STATUS_COLORS = {
+  Draft:                 { bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' },
+  Confirmed:             { bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
+  'Material Checking':   { bg: '#ede9fe', color: '#7c3aed', border: '#c4b5fd' },
+  'Ready For Production':{ bg: '#fef3c7', color: '#b45309', border: '#fcd34d' },
+  'In Progress':         { bg: '#fed7aa', color: '#c2410c', border: '#fdba74' },
+  'Quality Check':       { bg: '#fce7f3', color: '#9d174d', border: '#f9a8d4' },
+  Completed:             { bg: '#d1fae5', color: '#059669', border: '#6ee7b7' },
+  Done:                  { bg: '#d1fae5', color: '#059669', border: '#6ee7b7' },
+  Cancelled:             { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' },
+};
+
+const OP_STATUS_COLORS = {
+  Pending:   { bg: '#f3f4f6', color: '#6b7280' },
+  Running:   { bg: '#fed7aa', color: '#c2410c' },
+  Completed: { bg: '#d1fae5', color: '#059669' },
+  Failed:    { bg: '#fee2e2', color: '#dc2626' },
+};
+
+const STATUS_FLOW = [
+  'Draft', 'Confirmed', 'Material Checking', 'Ready For Production',
+  'In Progress', 'Quality Check', 'Completed'
 ];
 
-const WORK_CENTER_LIST = [
-  'Pre-Production',
-  'Assembly Line',
-  'Finishing Line',
-  'Upholstery Dep'
-];
+const cardV = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } } };
+const containerV = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } };
 
-function ManufacturingOrders({ onNavigate, currentUser }) {
-  const role = currentUser?.role || '';
-  const position = (currentUser?.position || '').toLowerCase();
-  const isAdmin = role === 'System Administrator' || role === 'ADMIN' || position.includes('admin');
-  const canEdit = isAdmin || role === 'MANUFACTURING_USER' || role === 'BUSINESS_OWNER' || position.includes('manufacturing') || position.includes('warehouse');
-
-  const [mfgOrders, setMfgOrders] = useState(() => {
-    const savedOrders = localStorage.getItem('assetflow_manufacturing_orders');
-    if (savedOrders) return JSON.parse(savedOrders);
-    return [
-      {
-        id: 'MO-000001',
-        bomId: 'BOM-000001',
-        product: 'Door Frames',
-        qty: 10.0,
-        unit: 'Units',
-        workCenter: 'Pre-Production',
-        date: '2026-08-20',
-        owner: 'Amit Sharma',
-        status: 'Confirmed',
-        components: [
-          { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
-          { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
-        ],
-        workOrders: [
-          { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
-          { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
-        ]
-      },
-      {
-        id: 'MO-000002',
-        bomId: '',
-        product: 'Lighting Frame',
-        qty: 5.0,
-        unit: 'Units',
-        workCenter: 'Assembly Line',
-        date: '2026-08-19',
-        owner: 'Neha Verma',
-        status: 'Draft',
-        components: [
-          { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
-        ],
-        workOrders: [
-          { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
-        ]
-      }
-    ];
+function apiFetch(path, opts = {}) {
+  const token = localStorage.getItem('assetflow_token');
+  return fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) }
   });
-  const [boms, setBoms] = useState(() => {
-    const savedBoms = localStorage.getItem('assetflow_boms');
-    if (savedBoms) return JSON.parse(savedBoms);
-    return [
-      {
-        id: 'BOM-000001',
-        reference: 'DF-01',
-        product: 'Door Frames',
-        qty: 10.0,
-        unit: 'Units',
-        components: [
-          { id: 1, name: 'Raw Lumber', qty: 15, unit: 'Units' },
-          { id: 2, name: 'Wood Glue', qty: 2, unit: 'Units' }
-        ],
-        workOrders: [
-          { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45 },
-          { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60 }
-        ]
-      },
-      {
-        id: 'BOM-000002',
-        reference: 'LF-02',
-        product: 'Lighting Frame',
-        qty: 5.0,
-        unit: 'Units',
-        components: [
-          { id: 1, name: 'Pendant lights', qty: 5, unit: 'Units' },
-          { id: 2, name: 'Drawer handles', qty: 10, unit: 'Units' }
-        ],
-        workOrders: [
-          { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30 },
-          { id: 2, operation: 'Finishing', workCenter: 'Finishing Line', duration: 20 }
-        ]
-      }
-    ];
-  });
-  const [activeView, setActiveView] = useState('list'); // 'list' | 'kanban' | 'form'
-  const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIds, setSelectedIds] = useState([]);
+}
 
-  // Form Fields State
-  const [selectedBomId, setSelectedBomId] = useState('');
-  const [finishedProduct, setFinishedProduct] = useState('');
-  const [qty, setQty] = useState(1);
-  const [assignee, setAssignee] = useState(ASSIGNEE_LIST[0]);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [orderStatus, setOrderStatus] = useState('Draft');
-  
-  // Tab details
-  const [activeTab, setActiveTab] = useState('components'); // 'components' | 'work-orders'
-  const [components, setComponents] = useState([]);
-  const [operations, setOperations] = useState([]);
+// ─────────────────────────────────────────────
+// SHARED UI
+// ─────────────────────────────────────────────
+function KpiCard({ icon, label, value, sub, subColor = '#6b7280', accent, danger, onClick }) {
+  const bg = accent
+    ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+    : danger
+      ? 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)'
+      : 'var(--card-bg)';
+  return (
+    <motion.div variants={cardV} whileHover={{ scale: 1.025, y: -3 }} onClick={onClick}
+      style={{ background: bg, border: (!accent && !danger) ? '1px solid var(--card-border)' : 'none',
+        borderRadius: 16, padding: '20px 22px', cursor: onClick ? 'pointer' : 'default',
+        boxShadow: (accent || danger) ? '0 8px 24px rgba(0,0,0,0.2)' : '0 2px 12px rgba(0,0,0,0.06)',
+        display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 20 }}>{icon}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: (accent || danger) ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 900, color: (accent || danger) ? '#fff' : 'var(--text-primary)', lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, fontWeight: 600, color: (accent || danger) ? 'rgba(255,255,255,0.8)' : subColor }}>{sub}</div>}
+    </motion.div>
+  );
+}
 
-  // Live Timer State for Operations
-  const [activeTimerId, setActiveTimerId] = useState(null);
-  const [timerIntervalId, setTimerIntervalId] = useState(null);
+function StatusBadge({ status }) {
+  const s = STATUS_COLORS[status] || { bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' };
+  return <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{status}</span>;
+}
 
-  const API_BASE_URL = 'http://127.0.0.1:5000/api';
+function Spinner() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60 }}>
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        style={{ width: 36, height: 36, border: '3px solid var(--card-border)', borderTopColor: '#f59e0b', borderRadius: '50%' }} />
+    </div>
+  );
+}
 
-  const syncToBackend = (method, endpoint, bodyObj) => {
-    const token = localStorage.getItem('assetflow_token');
-    fetch(`${API_BASE_URL}/${endpoint}`, {
-      method,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(bodyObj)
-    }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
-  };
+// ─────────────────────────────────────────────
+// MINI CHART (SVG)
+// ─────────────────────────────────────────────
+function MiniChart({ data, filter, onFilter }) {
+  const points = filter === '7' ? data.slice(-7) : data;
+  if (!points?.length) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>No production data yet</div>;
+  const max = Math.max(...points.map(p => p.qty), 1);
+  const W = 520, H = 100;
+  const step = W / (points.length - 1 || 1);
+  const pts = points.map((p, i) => ({ x: i * step, y: H - (p.qty / max) * H * 0.85 - 8, label: p.label, qty: p.qty }));
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaD = `${pathD} L ${pts[pts.length - 1].x} ${H} L 0 ${H} Z`;
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        {['7', '30'].map(f => (
+          <button key={f} onClick={() => onFilter(f)} style={{ padding: '4px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, background: filter === f ? '#f59e0b' : 'var(--card-border)', color: filter === f ? '#fff' : 'var(--text-secondary)' }}>
+            {f === '7' ? 'Last 7 Days' : 'Last 30 Days'}
+          </button>
+        ))}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 100 }}>
+        <defs>
+          <linearGradient id="mfgGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaD} fill="url(#mfgGrad)" />
+        <path d={pathD} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={3.5} fill="#f59e0b" />
+            {i % Math.ceil(pts.length / 7) === 0 && <text x={p.x} y={H} textAnchor="middle" fontSize="9" fill="#8E7E73">{p.label}</text>}
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
 
-  const createAuditLog = (action, orderId) => {
-    const today = new Date();
-    const formattedDate = today.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-    
-    const logObj = {
-      datetime: formattedDate,
-      user: assignee || 'Amit Sharma',
-      module: 'Manufacturing',
-      type: 'Manufacturing Order',
-      id: orderId,
-      action,
-      field: '-',
-      oldVal: '-',
-      newVal: '-'
-    };
-    
-    syncToBackend('POST', 'audit-logs', {
-      datetime: logObj.datetime,
-      user: logObj.user,
-      module: logObj.module,
-      type: logObj.type,
-      record_id: logObj.id,
-      action: logObj.action,
-      field: logObj.field,
-      old_val: logObj.oldVal,
-      new_val: logObj.newVal
-    });
-  };
+// ─────────────────────────────────────────────
+// DONUT CHART
+// ─────────────────────────────────────────────
+function DonutChart({ counts }) {
+  const data = [
+    { label: 'Draft', count: counts.Draft || 0, color: '#9ca3af' },
+    { label: 'Confirmed', count: counts.Confirmed || 0, color: '#3b82f6' },
+    { label: 'In Progress', count: counts['In Progress'] || 0, color: '#f59e0b' },
+    { label: 'Quality Check', count: counts['Quality Check'] || 0, color: '#ec4899' },
+    { label: 'Completed', count: counts.Completed || 0, color: '#10b981' },
+    { label: 'Cancelled', count: counts.Cancelled || 0, color: '#ef4444' },
+  ].filter(d => d.count > 0);
+  const total = data.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>No orders yet</div>;
+  let cumulative = 0;
+  const r = 40, cx = 55, cy = 55, strokeW = 16, circumference = 2 * Math.PI * r;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+      <svg width="110" height="110" viewBox="0 0 110 110" style={{ flexShrink: 0 }}>
+        {data.map((d, i) => {
+          const pct = d.count / total;
+          const dashArray = `${pct * circumference} ${circumference}`;
+          const offset = circumference * (1 - cumulative);
+          cumulative += pct;
+          return <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={d.color} strokeWidth={strokeW}
+            strokeDasharray={dashArray} strokeDashoffset={offset}
+            style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px`, transition: 'stroke-dasharray 0.6s ease' }} />;
+        })}
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="16" fontWeight="800" fill="var(--text-primary)">{total}</text>
+        <text x={cx} y={cy + 12} textAnchor="middle" fontSize="8" fill="var(--text-secondary)">ORDERS</text>
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1 }}>
+        {data.map(d => (
+          <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+            <span style={{ color: 'var(--text-secondary)', flex: 1 }}>{d.label}</span>
+            <span style={{ fontWeight: 700 }}>{d.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  // Load orders and BOMs on mount
+// ─────────────────────────────────────────────
+// MANUFACTURING DASHBOARD
+// ─────────────────────────────────────────────
+function ManufacturingDashboard({ onNavigateToOrders }) {
+  const [dash, setDash] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [chartFilter, setChartFilter] = useState('7');
+
   useEffect(() => {
-    const fetchBomsAndOrders = async () => {
-      // Load BOMs
-      try {
-        const token = localStorage.getItem('assetflow_token');
-        const bomRes = await fetch(`${API_BASE_URL}/boms`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (bomRes.ok) {
-          const bomData = await bomRes.json();
-          if (bomData.length > 0) {
-            setBoms(bomData);
-            localStorage.setItem('assetflow_boms', JSON.stringify(bomData));
-          } else {
-            const savedBoms = localStorage.getItem('assetflow_boms');
-            if (savedBoms) setBoms(JSON.parse(savedBoms));
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to fetch BOMs from backend, using localStorage.", err);
-        const savedBoms = localStorage.getItem('assetflow_boms');
-        if (savedBoms) setBoms(JSON.parse(savedBoms));
-      }
-
-      // Load Mfg Orders
-      try {
-        const token = localStorage.getItem('assetflow_token');
-        const orderRes = await fetch(`${API_BASE_URL}/manufacturing-orders`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
-          if (orderData.length > 0) {
-            const formatted = orderData.map(r => ({
-              id: r.id,
-              bomId: r.bom || '',
-              product: r.product,
-              qty: r.qty,
-              unit: r.units || 'Units',
-              workCenter: r.workCenter || (r.operations?.[0]?.workCenter || 'Assembly Line'),
-              date: r.date,
-              owner: r.assignee,
-              status: r.status,
-              components: r.components,
-              workOrders: r.operations
-            }));
-            setMfgOrders(formatted);
-            localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(formatted));
-            return;
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to fetch Manufacturing Orders from backend, using localStorage.", err);
-      }
-
-      const savedOrders = localStorage.getItem('assetflow_manufacturing_orders');
-      if (savedOrders) {
-        setMfgOrders(JSON.parse(savedOrders));
-      } else {
-        const initial = [
-          {
-            id: 'MO-000001',
-            bomId: 'BOM-000001',
-            product: 'Door Frames',
-            qty: 10.0,
-            unit: 'Units',
-            workCenter: 'Pre-Production',
-            date: '2026-08-20',
-            owner: 'Amit Sharma',
-            status: 'Confirmed',
-            components: [
-              { id: 1, name: 'Raw Lumber', qty: 15, consumed: 0, unit: 'Units' },
-              { id: 2, name: 'Wood Glue', qty: 2, consumed: 0, unit: 'Units' }
-            ],
-            workOrders: [
-              { id: 1, operation: 'Cutting', workCenter: 'Pre-Production', duration: 45, realDuration: 0 },
-              { id: 2, operation: 'Assembly', workCenter: 'Assembly Line', duration: 60, realDuration: 0 }
-            ]
-          },
-          {
-            id: 'MO-000002',
-            bomId: '',
-            product: 'Lighting Frame',
-            qty: 5.0,
-            unit: 'Units',
-            workCenter: 'Assembly Line',
-            date: '2026-08-19',
-            owner: 'Neha Verma',
-            status: 'Draft',
-            components: [
-              { id: 1, name: 'Pendant lights', qty: 5, consumed: 0, unit: 'Units' }
-            ],
-            workOrders: [
-              { id: 1, operation: 'Welding', workCenter: 'Assembly Line', duration: 30, realDuration: 0 }
-            ]
-          }
-        ];
-        setMfgOrders(initial);
-        localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(initial));
-      }
-    };
-
-    fetchBomsAndOrders();
+    apiFetch('/manufacturing/dashboard')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { setDash(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
-  // Timer clean up
-  useEffect(() => {
-    return () => {
-      if (timerIntervalId) clearInterval(timerIntervalId);
-    };
-  }, [timerIntervalId]);
+  if (loading) return <Spinner />;
+  if (!dash) return <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Could not load dashboard.</div>;
 
-  const saveOrders = (updatedList) => {
-    setMfgOrders(updatedList);
-    localStorage.setItem('assetflow_manufacturing_orders', JSON.stringify(updatedList));
-  };
-
-  // Helper to check component stock availability (Assume max stock of raw components is 12 units)
-  const isComponentAvailable = (comp) => {
-    const requiredQty = comp.qty * qty;
-    return requiredQty <= 12;
-  };
-
-  // Helper to determine total component status of an order
-  const getOrderComponentStatus = (order) => {
-    if (!order.components || order.components.length === 0) return 'Available';
-    const allAvailable = order.components.every(c => {
-      const requiredQty = c.qty * (order.qty || 1);
-      return requiredQty <= 12;
-    });
-    return allAvailable ? 'Available' : 'Not Available';
-  };
-
-  // Handle BOM selection and auto-populate fields
-  const handleBomChange = (bomId) => {
-    setSelectedBomId(bomId);
-    if (!bomId) return;
-    const foundBom = boms.find(b => b.id === bomId);
-    if (foundBom) {
-      setFinishedProduct(foundBom.product);
-      setQty(foundBom.qty);
-      
-      // Auto populate components with default consumed = 0
-      const populatedComps = (foundBom.components || []).map(c => ({
-        id: c.id,
-        name: c.name,
-        qty: c.qty,
-        consumed: 0,
-        unit: c.unit
-      }));
-      setComponents(populatedComps);
-
-      // Auto populate operations with default realDuration = 0
-      const populatedOps = (foundBom.workOrders || []).map(w => ({
-        id: w.id,
-        operation: w.operation,
-        workCenter: w.workCenter,
-        duration: w.duration,
-        realDuration: 0
-      }));
-      setOperations(populatedOps);
-    }
-  };
-
-  // Open form for editing
-  const handleEditOrder = (order) => {
-    // If active timer, clear it
-    stopTimer();
-    setSelectedOrder(order);
-    setSelectedBomId(order.bomId || '');
-    setFinishedProduct(order.product);
-    setQty(order.qty);
-    setAssignee(order.owner);
-    setScheduledDate(order.date);
-    setOrderStatus(order.status);
-    setComponents(order.components || []);
-    setOperations(order.workOrders || []);
-    setActiveTab('components');
-    setActiveView('form');
-  };
-
-  // Open form for creating new
-  const handleNewOrder = () => {
-    stopTimer();
-    setSelectedOrder(null);
-    setSelectedBomId('');
-    setFinishedProduct('');
-    setQty(1);
-    setAssignee(ASSIGNEE_LIST[0]);
-    const today = new Date().toISOString().split('T')[0];
-    setScheduledDate(today);
-    setOrderStatus('Draft');
-    setComponents([
-      { id: Date.now(), name: COMPONENT_OPTIONS[0], qty: 1, consumed: 0, unit: 'Units' }
-    ]);
-    setOperations([
-      { id: Date.now(), operation: 'Cutting Frame', workCenter: WORK_CENTER_LIST[0], duration: 30, realDuration: 0 }
-    ]);
-    setActiveTab('components');
-    setActiveView('form');
-  };
-
-  // Save changes from form
-  const handleSaveForm = (e) => {
-    if (e) e.preventDefault();
-    if (!finishedProduct || !scheduledDate) {
-      alert('Please fill out all mandatory fields.');
-      return;
-    }
-
-    const primaryWorkCenter = operations.length > 0 ? operations[0].workCenter : 'Assembly Line';
-
-    if (selectedOrder) {
-      // Edit existing
-      const updated = mfgOrders.map(o => {
-        if (o.id === selectedOrder.id) {
-          const updatedObj = {
-            ...o,
-            bomId: selectedBomId,
-            product: finishedProduct,
-            qty,
-            owner: assignee,
-            date: scheduledDate,
-            status: orderStatus,
-            workCenter: primaryWorkCenter,
-            components,
-            workOrders: operations
-          };
-
-          const backendObj = {
-            id: updatedObj.id,
-            date: updatedObj.date,
-            product: updatedObj.product,
-            bom: updatedObj.bomId,
-            qty: updatedObj.qty,
-            units: updatedObj.unit,
-            assignee: updatedObj.owner,
-            status: updatedObj.status,
-            components: updatedObj.components,
-            operations: updatedObj.workOrders
-          };
-          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
-          createAuditLog('Updated', updatedObj.id);
-          return updatedObj;
-        }
-        return o;
-      });
-      saveOrders(updated);
-    } else {
-      // Create new with autogenerated zero-padded sequence
-      const nextNum = mfgOrders.length + 1;
-      const newId = `MO-${String(nextNum).padStart(6, '0')}`;
-      const newOrder = {
-        id: newId,
-        bomId: selectedBomId,
-        product: finishedProduct,
-        qty,
-        unit: 'Units',
-        workCenter: primaryWorkCenter,
-        date: scheduledDate,
-        owner: assignee,
-        status: 'Draft',
-        components,
-        workOrders: operations
-      };
-
-      const backendObj = {
-        id: newOrder.id,
-        date: newOrder.date,
-        product: newOrder.product,
-        bom: newOrder.bomId,
-        qty: newOrder.qty,
-        units: newOrder.unit,
-        assignee: newOrder.owner,
-        status: newOrder.status,
-        components: newOrder.components,
-        operations: newOrder.workOrders
-      };
-      syncToBackend('POST', 'manufacturing-orders', backendObj);
-      createAuditLog('Created', newOrder.id);
-      saveOrders([...mfgOrders, newOrder]);
-    }
-
-    stopTimer();
-    setActiveView('list');
-  };
-
-  // Workflow transition actions
-  const handleConfirmOrder = () => {
-    setOrderStatus('Confirmed');
-    if (selectedOrder) {
-      const updated = mfgOrders.map(o => {
-        if (o.id === selectedOrder.id) {
-          const updatedObj = { ...o, status: 'Confirmed' };
-          
-          const backendObj = {
-            id: updatedObj.id,
-            date: updatedObj.date,
-            product: updatedObj.product,
-            bom: updatedObj.bomId,
-            qty: updatedObj.qty,
-            units: updatedObj.unit,
-            assignee: updatedObj.owner,
-            status: updatedObj.status,
-            components: updatedObj.components,
-            operations: updatedObj.workOrders
-          };
-          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
-          createAuditLog('Confirmed', updatedObj.id);
-          return updatedObj;
-        }
-        return o;
-      });
-      saveOrders(updated);
-    }
-  };
-
-  const handleStartProduction = () => {
-    setOrderStatus('In Progress');
-    if (selectedOrder) {
-      const updated = mfgOrders.map(o => {
-        if (o.id === selectedOrder.id) {
-          const updatedObj = { ...o, status: 'In Progress' };
-
-          const backendObj = {
-            id: updatedObj.id,
-            date: updatedObj.date,
-            product: updatedObj.product,
-            bom: updatedObj.bomId,
-            qty: updatedObj.qty,
-            units: updatedObj.unit,
-            assignee: updatedObj.owner,
-            status: updatedObj.status,
-            components: updatedObj.components,
-            operations: updatedObj.workOrders
-          };
-          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
-          createAuditLog('Started Production', updatedObj.id);
-          return updatedObj;
-        }
-        return o;
-      });
-      saveOrders(updated);
-    }
-  };
-
-  const handleMarkAsDone = () => {
-    setOrderStatus('Done');
-    stopTimer();
-    if (selectedOrder) {
-      const updated = mfgOrders.map(o => {
-        if (o.id === selectedOrder.id) {
-          const updatedObj = { ...o, status: 'Done' };
-
-          const backendObj = {
-            id: updatedObj.id,
-            date: updatedObj.date,
-            product: updatedObj.product,
-            bom: updatedObj.bomId,
-            qty: updatedObj.qty,
-            units: updatedObj.unit,
-            assignee: updatedObj.owner,
-            status: updatedObj.status,
-            components: updatedObj.components,
-            operations: updatedObj.workOrders
-          };
-          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
-          createAuditLog('Marked as Done', updatedObj.id);
-          return updatedObj;
-        }
-        return o;
-      });
-      saveOrders(updated);
-    }
-  };
-
-  const handleCancelOrder = () => {
-    setOrderStatus('Cancelled');
-    stopTimer();
-    if (selectedOrder) {
-      const updated = mfgOrders.map(o => {
-        if (o.id === selectedOrder.id) {
-          const updatedObj = { ...o, status: 'Cancelled' };
-
-          const backendObj = {
-            id: updatedObj.id,
-            date: updatedObj.date,
-            product: updatedObj.product,
-            bom: updatedObj.bomId,
-            qty: updatedObj.qty,
-            units: updatedObj.unit,
-            assignee: updatedObj.owner,
-            status: updatedObj.status,
-            components: updatedObj.components,
-            operations: updatedObj.workOrders
-          };
-          syncToBackend('PUT', `manufacturing-orders/${updatedObj.id}`, backendObj);
-          createAuditLog('Cancelled', updatedObj.id);
-          return updatedObj;
-        }
-        return o;
-      });
-      saveOrders(updated);
-    }
-  };
-
-  // Live Timer Operations
-  const toggleOperationTimer = (opId) => {
-    if (activeTimerId === opId) {
-      // Pause
-      stopTimer();
-    } else {
-      // Start/Resume
-      stopTimer();
-      setActiveTimerId(opId);
-      const interval = setInterval(() => {
-        setOperations(prevOps => prevOps.map(op => {
-          if (op.id === opId) {
-            return { ...op, realDuration: (op.realDuration || 0) + 1 };
-          }
-          return op;
-        }));
-      }, 1000);
-      setTimerIntervalId(interval);
-    }
-  };
-
-  const stopTimer = () => {
-    if (timerIntervalId) {
-      clearInterval(timerIntervalId);
-      setTimerIntervalId(null);
-    }
-    setActiveTimerId(null);
-  };
-
-  const formatRealDuration = (seconds) => {
-    const secs = seconds || 0;
-    const mins = Math.floor(secs / 60);
-    const remainingSecs = secs % 60;
-    return `${String(mins).padStart(2, '0')}:${String(remainingSecs).padStart(2, '0')}`;
-  };
-
-  // Components table line handling
-  const handleAddComponentLine = () => {
-    const newLine = {
-      id: Date.now(),
-      name: COMPONENT_OPTIONS[0],
-      qty: 1,
-      consumed: 0,
-      unit: 'Units'
-    };
-    setComponents([...components, newLine]);
-  };
-
-  const handleUpdateComponentLine = (id, field, value) => {
-    setComponents(components.map(c => c.id === id ? { ...c, [field]: value } : c));
-  };
-
-  const handleRemoveComponentLine = (id) => {
-    setComponents(components.filter(c => c.id !== id));
-  };
-
-  // Operations table line handling
-  const handleAddOperationLine = () => {
-    const newLine = {
-      id: Date.now(),
-      operation: 'New Routing Step',
-      workCenter: WORK_CENTER_LIST[0],
-      duration: 30,
-      realDuration: 0
-    };
-    setOperations([...operations, newLine]);
-  };
-
-  const handleUpdateOperationLine = (id, field, value) => {
-    setOperations(operations.map(op => op.id === id ? { ...op, [field]: value } : op));
-  };
-
-  const handleRemoveOperationLine = (id) => {
-    if (activeTimerId === id) stopTimer();
-    setOperations(operations.filter(op => op.id !== id));
-  };
-
-  // Checkbox Selection in List
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedIds(filteredOrders.map(o => o.id));
-    } else {
-      setSelectedIds([]);
-    }
-  };
-
-  const handleSelectRow = (id) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter(x => x !== id));
-    } else {
-      setSelectedIds([...selectedIds, id]);
-    }
-  };
-
-  // Filter orders by search
-  const filteredOrders = mfgOrders.filter(o => 
-    o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.workCenter.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const { kpis = {}, statusCounts = {}, productionTrend7 = [], productionTrend30 = [], recentOrders = [], materialAlerts = [], topProducts = [] } = dash;
 
   return (
-    <div className="page-content animated fadeIn">
-      
-      {/* HEADER CONTROLS */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)' }}>Manufacturing Orders</h2>
-          <p className="sys-desc" style={{ margin: '4px 0 0 0' }}>Plan, schedule, and track workshop assembly routing operations</p>
+    <motion.div variants={containerV} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* KPIs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 14 }}>
+        <KpiCard icon="⚙️" label="Active Orders" value={kpis.activeOrders || 0} accent sub="Currently in production" />
+        <KpiCard icon="✅" label="Units Produced" value={kpis.completedUnits || 0} sub="This month" subColor="#059669" onClick={onNavigateToOrders} />
+        <KpiCard icon="📋" label="Work Orders" value={kpis.pendingWorkOrders || 0} sub="Pending operations" subColor="#d97706" />
+        <KpiCard icon="📈" label="Efficiency" value={`${kpis.efficiency || 0}%`}
+          sub={kpis.efficiency >= 80 ? '🟢 Good' : kpis.efficiency >= 60 ? '🟡 Fair' : '🔴 Low'}
+          subColor={kpis.efficiency >= 80 ? '#059669' : kpis.efficiency >= 60 ? '#d97706' : '#dc2626'} />
+        <KpiCard icon="🧱" label="Material Consumed" value={kpis.totalConsumed || 0} sub="Units used in production" />
+        {kpis.delayedOrders > 0 && <KpiCard icon="⏰" label="Delayed Orders" value={kpis.delayedOrders} danger sub="Past expected date" />}
+      </div>
+
+      {/* CHARTS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+        <motion.div variants={cardV} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: 22 }}>
+          <h4 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700 }}>📈 Production Output Trend</h4>
+          <MiniChart data={chartFilter === '7' ? productionTrend7 : productionTrend30} filter={chartFilter} onFilter={setChartFilter} />
+        </motion.div>
+        <motion.div variants={cardV} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: 22 }}>
+          <h4 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700 }}>🍩 Order Status</h4>
+          <DonutChart counts={statusCounts} />
+        </motion.div>
+      </div>
+
+      {/* RECENT ORDERS + MATERIAL ALERTS + TOP PRODUCTS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+        <motion.div variants={cardV} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: 22, overflowX: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>🕐 Recent Manufacturing Orders</h4>
+            <button onClick={onNavigateToOrders} style={{ background: 'none', border: 'none', color: '#f59e0b', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>View All →</button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr style={{ borderBottom: '1px solid var(--card-border)' }}>
+              {['MO #', 'Product', 'Qty', 'Assignee', 'Status'].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '6px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {recentOrders.length === 0 ? (
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-secondary)' }}>No orders yet</td></tr>
+              ) : recentOrders.map((o, i) => (
+                <motion.tr key={o.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
+                  style={{ borderBottom: '1px solid var(--card-border)' }}>
+                  <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', fontSize: 12 }}>{o.id}</td>
+                  <td style={{ padding: '8px', fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.product}</td>
+                  <td style={{ padding: '8px', textAlign: 'center', fontWeight: 700 }}>{o.qty}</td>
+                  <td style={{ padding: '8px', color: 'var(--text-secondary)' }}>{o.assignee}</td>
+                  <td style={{ padding: '8px' }}><StatusBadge status={o.status} /></td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </motion.div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Material Alerts */}
+          {materialAlerts.length > 0 && (
+            <motion.div variants={cardV} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 16, padding: 18 }}>
+              <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: '#dc2626' }}>⚠️ Material Shortages</h4>
+              {materialAlerts.slice(0, 4).map((a, i) => (
+                <div key={i} style={{ fontSize: 12, marginBottom: 8, padding: '6px 0', borderBottom: '1px solid #fecaca' }}>
+                  <div style={{ fontWeight: 700 }}>{a.material}</div>
+                  <div style={{ color: '#dc2626' }}>Need: {a.required} · Have: {a.available} · Short: <strong>{a.shortage}</strong></div>
+                </div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* Top Products */}
+          <motion.div variants={cardV} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: 20, flex: 1 }}>
+            <h4 style={{ margin: '0 0 14px', fontSize: 14, fontWeight: 700 }}>🏆 Top Produced Items</h4>
+            {topProducts.length === 0 ? (
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center', padding: 16 }}>No data yet</div>
+            ) : topProducts.map((p, i) => {
+              const maxQty = topProducts[0].qty || 1;
+              const pct = (p.qty / maxQty) * 100;
+              return (
+                <div key={p.name} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 700 }}>{p.qty} units</span>
+                  </div>
+                  <div style={{ background: 'var(--card-border)', borderRadius: 4, height: 5 }}>
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: i * 0.1 }}
+                      style={{ height: '100%', background: 'linear-gradient(90deg, #f59e0b, #d97706)', borderRadius: 4 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </motion.div>
         </div>
-        
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            className={`btn ${activeView === 'list' ? 'btn-primary' : 'btn-outline'}`} 
-            onClick={() => { stopTimer(); setActiveView('list'); }}
-            style={{ marginTop: 0 }}
-          >
-            List View
-          </button>
-          <button 
-            className={`btn ${activeView === 'kanban' ? 'btn-primary' : 'btn-outline'}`} 
-            onClick={() => { stopTimer(); setActiveView('kanban'); }}
-            style={{ marginTop: 0 }}
-          >
-            Kanban Board
-          </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// WORK ORDERS PANEL (inside order form)
+// ─────────────────────────────────────────────
+function WorkOrdersPanel({ operations, onUpdate, canEdit, isLocked }) {
+  const updateOp = (i, field, val) => {
+    const next = [...operations];
+    next[i] = { ...next[i], [field]: val };
+    onUpdate(next);
+  };
+  const addOp = () => onUpdate([...operations, { operation: 'New Operation', workCenter: 'Assembly Line', duration: 60, realDuration: 0, status: 'Pending' }]);
+  const removeOp = (i) => onUpdate(operations.filter((_, idx) => idx !== i));
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>⚙️ Work Orders / Operations</h4>
+        {canEdit && !isLocked && <button type="button" onClick={addOp} style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 14px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>+ Add Operation</button>}
+      </div>
+      {operations.length === 0 ? (
+        <div style={{ padding: 20, border: '1px dashed var(--card-border)', borderRadius: 10, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>No work orders yet</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {operations.map((op, i) => {
+            const opCol = OP_STATUS_COLORS[op.status] || OP_STATUS_COLORS.Pending;
+            return (
+              <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'end',
+                  background: '#fafafa', border: '1px solid var(--card-border)', borderRadius: 10, padding: '12px 14px' }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Operation</label>
+                  <input className="filter-control-input" value={op.operation || ''} onChange={e => updateOp(i, 'operation', e.target.value)}
+                    disabled={!canEdit || isLocked} style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Work Center</label>
+                  <select className="filter-control-select" value={op.workCenter || ''} onChange={e => updateOp(i, 'workCenter', e.target.value)}
+                    disabled={!canEdit || isLocked} style={{ width: '100%' }}>
+                    {['Pre-Production', 'Assembly Line', 'Finishing Line', 'Upholstery Dept', 'Quality Control', 'Packaging'].map(wc => <option key={wc}>{wc}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Planned (min)</label>
+                  <input type="number" className="filter-control-input" value={op.duration || 0} onChange={e => updateOp(i, 'duration', parseInt(e.target.value) || 0)}
+                    disabled={!canEdit || isLocked} min={0} style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Actual (min)</label>
+                  <input type="number" className="filter-control-input" value={op.realDuration || 0} onChange={e => updateOp(i, 'realDuration', parseInt(e.target.value) || 0)}
+                    disabled={!canEdit} min={0} style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Status</label>
+                  <select className="filter-control-select" value={op.status || 'Pending'} onChange={e => updateOp(i, 'status', e.target.value)}
+                    disabled={!canEdit} style={{ width: '100%', background: opCol.bg, color: opCol.color }}>
+                    {['Pending', 'Running', 'Completed', 'Failed'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                {canEdit && !isLocked && (
+                  <button type="button" onClick={() => removeOp(i)} style={{ background: '#fee2e2', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: 14 }}>✕</button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MATERIAL AVAILABILITY
+// ─────────────────────────────────────────────
+function MaterialCheck({ components }) {
+  const [check, setCheck] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const runCheck = async () => {
+    if (!components.length) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch('/manufacturing/check-materials', { method: 'POST', body: JSON.stringify({ components }) });
+      const data = await res.json();
+      setCheck(data);
+    } catch { toast.error('Material check failed'); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ background: '#f8fafc', border: '1px solid var(--card-border)', borderRadius: 12, padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: check ? 12 : 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>🔍 Material Availability Check</span>
+        <button type="button" onClick={runCheck} disabled={loading}
+          style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+          {loading ? 'Checking...' : 'Check Stock'}
+        </button>
+      </div>
+      {check && (
+        <div style={{ marginTop: 10 }}>
+          {check.available ? (
+            <div style={{ padding: '8px 14px', background: '#d1fae5', border: '1px solid #6ee7b7', borderRadius: 8, color: '#059669', fontWeight: 700, fontSize: 13 }}>
+              ✅ All materials available — Production can start!
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding: '8px 14px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8, color: '#dc2626', fontWeight: 700, fontSize: 13, marginBottom: 8 }}>
+                ⚠️ Material shortages detected:
+              </div>
+              {check.shortages.map(s => (
+                <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, marginBottom: 4, fontSize: 12 }}>
+                  <span style={{ fontWeight: 700 }}>{s.name}</span>
+                  <span>Need: <strong>{s.required}</strong> · Have: <strong style={{ color: s.available === 0 ? '#dc2626' : '#d97706' }}>{s.available}</strong> · Short: <strong style={{ color: '#dc2626' }}>{s.shortage}</strong></span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// STATUS TIMELINE
+// ─────────────────────────────────────────────
+function StatusTimeline({ currentStatus }) {
+  const currentIdx = STATUS_FLOW.indexOf(currentStatus);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
+      {STATUS_FLOW.map((s, i) => {
+        const isActive = i === currentIdx;
+        const isDone = i < currentIdx;
+        const isCancelled = currentStatus === 'Cancelled';
+        return (
+          <React.Fragment key={s}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', border: `2px solid ${isDone || isActive ? '#f59e0b' : 'var(--card-border)'}`,
+                background: isDone ? '#f59e0b' : isActive ? '#fff7ed' : 'var(--card-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+                opacity: isCancelled && !isActive ? 0.4 : 1 }}>
+                {isDone ? '✓' : isActive ? '●' : '○'}
+              </div>
+              <div style={{ fontSize: 9, color: isDone || isActive ? '#d97706' : 'var(--text-secondary)', marginTop: 4, textAlign: 'center', maxWidth: 60, lineHeight: 1.2, fontWeight: isActive ? 800 : 500 }}>{s}</div>
+            </div>
+            {i < STATUS_FLOW.length - 1 && (
+              <div style={{ height: 2, width: 20, background: i < currentIdx ? '#f59e0b' : 'var(--card-border)', flexShrink: 0, marginBottom: 20, transition: 'background 0.3s' }} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MANUFACTURING ORDER FORM
+// ─────────────────────────────────────────────
+function MoForm({ order, boms, products, currentUser, onSave, onBack }) {
+  const isNew = !order;
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'System Administrator';
+  const canEdit = isAdmin || currentUser?.role === 'MANUFACTURING_USER';
+  const isLocked = ['Completed', 'Done', 'Cancelled'].includes(order?.status);
+  const isInProgress = ['In Progress', 'Quality Check'].includes(order?.status);
+
+  const [product, setProduct] = useState(order?.product || '');
+  const [selectedBom, setSelectedBom] = useState(order?.bom || '');
+  const [qty, setQty] = useState(order?.qty || 1);
+  const [unit, setUnit] = useState(order?.units || 'Units');
+  const [assignee, setAssignee] = useState(order?.assignee || currentUser?.name || '');
+  const [orderDate, setOrderDate] = useState(order?.date || new Date().toISOString().split('T')[0]);
+  const [expectedDate, setExpectedDate] = useState(order?.expected_completion || '');
+  const [notes, setNotes] = useState(order?.notes || '');
+  const [status, setStatus] = useState(order?.status || 'Draft');
+  const [components, setComponents] = useState(order?.components || []);
+  const [operations, setOperations] = useState(order?.operations || order?.workOrders || []);
+  const [qualityStatus, setQualityStatus] = useState(order?.quality_status || '');
+  const [qualityNotes, setQualityNotes] = useState(order?.quality_notes || '');
+  const [activeDetailTab, setActiveDetailTab] = useState('components');
+  const [saving, setSaving] = useState(false);
+
+  // Load BOM when product/BOM changes
+  const loadBom = (bomId) => {
+    const bom = boms.find(b => b.id === bomId);
+    if (!bom) return;
+    setSelectedBom(bomId);
+    const scaledComponents = (bom.components || bom.work_orders?.filter(w => w.name) || []).map(c => ({
+      name: c.name, qty: Math.ceil((c.qty || 1) * qty), consumed: 0, unit: c.unit || 'Units'
+    }));
+    setComponents(scaledComponents.length ? scaledComponents : components);
+    const ops = (bom.workOrders || bom.work_orders || []).map(w => ({
+      operation: w.operation, workCenter: w.workCenter, duration: w.duration || 60, realDuration: 0, status: 'Pending'
+    }));
+    setOperations(ops.length ? ops : operations);
+    toast.success('BOM loaded! Components and operations pre-filled.', { icon: '📋' });
+  };
+
+  const updateComponent = (i, field, val) => {
+    const next = [...components];
+    next[i] = { ...next[i], [field]: val };
+    setComponents(next);
+  };
+  const addComponent = () => setComponents(p => [...p, { name: '', qty: 1, consumed: 0, unit: 'Units' }]);
+  const removeComponent = (i) => setComponents(p => p.filter((_, idx) => idx !== i));
+
+  const getNextStatus = () => {
+    const idx = STATUS_FLOW.indexOf(status);
+    return idx >= 0 && idx < STATUS_FLOW.length - 1 ? STATUS_FLOW[idx + 1] : null;
+  };
+
+  const handleSave = async (e, newStatus) => {
+    e && e.preventDefault();
+    if (!product.trim()) { toast.error('Product name required'); return; }
+    setSaving(true);
+    const saveStatus = newStatus || status;
+    const body = {
+      date: orderDate, product, bom: selectedBom, qty, units: unit,
+      assignee, status: saveStatus, components, operations,
+      expected_completion: expectedDate, notes,
+      qualityStatus: qualityStatus || undefined,
+      qualityNotes: qualityNotes || undefined,
+      owner: order?.owner || currentUser?.login_id || ''
+    };
+    try {
+      let res;
+      if (isNew) res = await apiFetch('/manufacturing-orders', { method: 'POST', body: JSON.stringify(body) });
+      else res = await apiFetch(`/manufacturing-orders/${order.id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data.success !== false) {
+        toast.success(isNew ? 'Manufacturing order created!' : 'Order saved!', { icon: '✅' });
+        onSave();
+      } else toast.error(data.message || 'Failed');
+    } catch { toast.error('Server unreachable'); }
+    finally { setSaving(false); }
+  };
+
+  const nextStatus = getNextStatus();
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* HEADER */}
+      <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: '24px 28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--card-border)', paddingBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{isNew ? 'New Manufacturing Order' : `MO: ${order.id}`}</h3>
+            <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: 13 }}>Production order management</p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <StatusBadge status={status} />
+            <button onClick={onBack} style={{ background: 'var(--card-border)', border: 'none', borderRadius: 8, padding: '7px 16px', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>← Back</button>
+          </div>
+        </div>
+        {!isNew && <StatusTimeline currentStatus={status} />}
+      </div>
+
+      <form onSubmit={e => handleSave(e)} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* PRODUCTION INFO */}
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: '22px 28px' }}>
+          <h4 style={{ margin: '0 0 16px', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>📦 Production Details</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Finished Product *</label>
+              {products.length > 0 ? (
+                <select className="filter-control-select" value={product}
+                  onChange={e => {
+                    setProduct(e.target.value);
+                    const bom = boms.find(b => b.product === e.target.value);
+                    if (bom) loadBom(bom.id);
+                  }}
+                  disabled={!canEdit || isLocked || isInProgress} style={{ width: '100%', fontSize: 15 }}>
+                  <option value="">— Select Product —</option>
+                  {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+              ) : (
+                <input className="filter-control-input" value={product} onChange={e => setProduct(e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%', fontSize: 15 }} placeholder="Product name" />
+              )}
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Bill of Materials (BOM)</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select className="filter-control-select" value={selectedBom} onChange={e => loadBom(e.target.value)}
+                  disabled={!canEdit || isLocked || isInProgress} style={{ flex: 1 }}>
+                  <option value="">— No BOM —</option>
+                  {boms.map(b => <option key={b.id} value={b.id}>{b.id} — {b.product}</option>)}
+                </select>
+                {selectedBom && <button type="button" onClick={() => loadBom(selectedBom)} style={{ background: '#fef3c7', border: '1px solid #fcd34d', color: '#b45309', borderRadius: 8, padding: '0 12px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>Load</button>}
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Quantity</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input type="number" className="filter-control-input" value={qty} onChange={e => setQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  disabled={!canEdit || isLocked || isInProgress} min={1} style={{ flex: 1 }} />
+                <select className="filter-control-select" value={unit} onChange={e => setUnit(e.target.value)}
+                  disabled={!canEdit || isLocked} style={{ width: 100 }}>
+                  {['Units', 'Pcs', 'Sets', 'Kg', 'Meters'].map(u => <option key={u}>{u}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Assigned Employee</label>
+              <input className="filter-control-input" value={assignee} onChange={e => setAssignee(e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Planned Date</label>
+              <input type="date" className="filter-control-input" value={orderDate} onChange={e => setOrderDate(e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Expected Completion</label>
+              <input type="date" className="filter-control-input" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }} />
+            </div>
+            <div style={{ gridColumn: 'span 2' }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Notes / Special Instructions</label>
+              <input className="filter-control-input" value={notes} onChange={e => setNotes(e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }} placeholder="Any notes about this production order..." />
+            </div>
+          </div>
+        </div>
+
+        {/* COMPONENTS & WORK ORDERS TABS */}
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', borderBottom: '2px solid var(--card-border)', padding: '0 24px' }}>
+            {[['components', '🧱 Raw Materials'], ['operations', '⚙️ Work Orders']].map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setActiveDetailTab(id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '14px 16px', fontSize: 14, fontWeight: 700,
+                  color: activeDetailTab === id ? '#f59e0b' : 'var(--text-secondary)',
+                  borderBottom: activeDetailTab === id ? '2px solid #f59e0b' : '2px solid transparent', marginBottom: -2 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ padding: 24 }}>
+            {activeDetailTab === 'components' ? (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>🧱 Bill of Materials — Components</h4>
+                  {canEdit && !isLocked && (
+                    <button type="button" onClick={addComponent} style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 14px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>+ Add Material</button>
+                  )}
+                </div>
+                {components.length === 0 ? (
+                  <div style={{ padding: 20, border: '1px dashed var(--card-border)', borderRadius: 10, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>
+                    No materials. Select a BOM above to auto-populate, or add manually.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {components.map((comp, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                        style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'end',
+                          background: '#fafafa', border: '1px solid var(--card-border)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Material Name</label>
+                          {products.length > 0 ? (
+                            <select className="filter-control-select" value={comp.name} onChange={e => updateComponent(i, 'name', e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }}>
+                              <option value="">— Select —</option>
+                              {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                            </select>
+                          ) : (
+                            <input className="filter-control-input" value={comp.name} onChange={e => updateComponent(i, 'name', e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }} />
+                          )}
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Required Qty</label>
+                          <input type="number" className="filter-control-input" value={comp.qty} onChange={e => updateComponent(i, 'qty', parseFloat(e.target.value) || 0)} disabled={!canEdit || isLocked} min={0} style={{ width: '100%' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Consumed</label>
+                          <input type="number" className="filter-control-input" value={comp.consumed || 0} onChange={e => updateComponent(i, 'consumed', parseFloat(e.target.value) || 0)} disabled={!canEdit} min={0} style={{ width: '100%' }} />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Unit</label>
+                          <select className="filter-control-select" value={comp.unit || 'Units'} onChange={e => updateComponent(i, 'unit', e.target.value)} disabled={!canEdit || isLocked} style={{ width: '100%' }}>
+                            {['Units', 'Kg', 'Meters', 'Pcs', 'Liters', 'Sq. Ft'].map(u => <option key={u}>{u}</option>)}
+                          </select>
+                        </div>
+                        {canEdit && !isLocked && (
+                          <button type="button" onClick={() => removeComponent(i)} style={{ background: '#fee2e2', border: 'none', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', color: '#dc2626', fontWeight: 700, fontSize: 14 }}>✕</button>
+                        )}
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                {/* Material check */}
+                {components.length > 0 && (
+                  <div style={{ marginTop: 14 }}>
+                    <MaterialCheck components={components} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <WorkOrdersPanel operations={operations} onUpdate={setOperations} canEdit={canEdit} isLocked={isLocked} />
+            )}
+          </div>
+        </div>
+
+        {/* QUALITY CHECK (visible when in Quality Check status) */}
+        {(status === 'Quality Check' || qualityStatus) && (
+          <div style={{ background: '#fdf2f8', border: '1px solid #f9a8d4', borderRadius: 16, padding: '22px 28px' }}>
+            <h4 style={{ margin: '0 0 16px', fontSize: 13, fontWeight: 700, color: '#9d174d', textTransform: 'uppercase' }}>🔬 Quality Inspection</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#9d174d', display: 'block', marginBottom: 5 }}>Quality Status</label>
+                <select className="filter-control-select" value={qualityStatus} onChange={e => setQualityStatus(e.target.value)} disabled={!canEdit}>
+                  <option value="">— Select —</option>
+                  {['Passed', 'Failed', 'Rework Required'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#9d174d', display: 'block', marginBottom: 5 }}>Inspector Remarks</label>
+                <input className="filter-control-input" value={qualityNotes} onChange={e => setQualityNotes(e.target.value)} disabled={!canEdit} placeholder="Notes from quality inspection..." style={{ width: '100%' }} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ACTIONS */}
+        {canEdit && (
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '18px 24px', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {!isLocked && (
+              <button type="submit" disabled={saving} style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 22px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                {saving ? 'Saving...' : isNew ? '🔨 Create MO' : '💾 Save Changes'}
+              </button>
+            )}
+            {nextStatus && !isNew && !isLocked && (
+              <button type="button" disabled={saving} onClick={async () => {
+                if (nextStatus === 'In Progress' && !window.confirm('Start production? This will reserve raw materials from inventory.')) return;
+                if (nextStatus === 'Completed' && !window.confirm('Mark as Completed? This will consume raw materials and produce finished goods in inventory.')) return;
+                await handleSave(null, nextStatus);
+              }}
+                style={{ background: nextStatus === 'Completed' ? '#059669' : nextStatus === 'In Progress' ? '#f59e0b' : '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                → Advance to: {nextStatus}
+              </button>
+            )}
+            {!isLocked && !isNew && (
+              <button type="button" disabled={saving} onClick={async () => {
+                if (!window.confirm('Cancel this manufacturing order?')) return;
+                await handleSave(null, 'Cancelled');
+              }} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                Cancel MO
+              </button>
+            )}
+          </div>
+        )}
+      </form>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MANUFACTURING ORDERS TAB
+// ─────────────────────────────────────────────
+function ManufacturingOrdersTab({ currentUser, boms, products }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('list');
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'System Administrator';
+  const canEdit = isAdmin || currentUser?.role === 'MANUFACTURING_USER';
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/manufacturing-orders');
+      if (res.ok) setOrders(await res.json());
+    } catch { toast.error('Failed to load orders'); }
+    setLoading(false);
+  }, []);
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  if (view === 'form') return <MoForm order={selected} boms={boms} products={products} currentUser={currentUser} onSave={() => { setView('list'); fetchOrders(); }} onBack={() => setView('list')} />;
+
+  const statuses = ['All', 'Draft', 'Confirmed', 'Material Checking', 'Ready For Production', 'In Progress', 'Quality Check', 'Completed', 'Cancelled'];
+  const filtered = orders.filter(o => {
+    const ms = !search || o.id?.toLowerCase().includes(search.toLowerCase()) || (o.product || '').toLowerCase().includes(search.toLowerCase());
+    const mst = statusFilter === 'All' || o.status === statusFilter;
+    return ms && mst;
+  });
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['list', 'kanban'].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: view === v ? '#f59e0b' : 'var(--card-border)', color: view === v ? '#fff' : 'var(--text-primary)' }}>
+              {v === 'list' ? '☰ List' : '⬛ Kanban'}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input className="filter-control-input" placeholder="Search MO, product..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 220 }} />
+          <select className="filter-control-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 180 }}>
+            {statuses.map(s => <option key={s}>{s}</option>)}
+          </select>
           {canEdit && (
-            <button 
-              className="btn btn-primary" 
-              onClick={handleNewOrder}
-              style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              New Manufacturing Order
+            <button onClick={() => { setSelected(null); setView('form'); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' }}>
+              + New MO
             </button>
           )}
         </div>
       </div>
 
-      {/* 1. LIST VIEW */}
-      {activeView === 'list' && (
-        <div className="card glass erp-dashboard-panel" style={{ padding: '24px' }}>
-          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <input
-                type="text"
-                placeholder="Search Reference, product or work center..."
-                className="filter-control-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: '360px', paddingLeft: '32px' }}
-              />
-              <span style={{ position: 'absolute', left: '10px', color: 'var(--text-secondary)' }}>🔍</span>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
-                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                Filter
-              </button>
-              <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
-                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Export
-              </button>
-              <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginLeft: '10px' }}>
-                Showing {filteredOrders.length} orders
-              </span>
-            </div>
-          </div>
-
-          <div className="table-container-scroll">
-            <table className="erp-dashboard-table">
+      {loading ? <Spinner /> : view === 'list' ? (
+        <div className="sf-panel" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="sf-table-wrapper">
+            <table className="sf-table" style={{ fontSize: 13 }}>
               <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>
-                    <input 
-                      type="checkbox" 
-                      onChange={handleSelectAll} 
-                      checked={filteredOrders.length > 0 && selectedIds.length === filteredOrders.length}
-                    />
-                  </th>
-                  <th>Reference</th>
-                  <th>Date</th>
-                  <th>Finished Product</th>
-                  <th>Component Status</th>
-                  <th>Quantity</th>
-                  <th>Unit</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
+                <tr>{['MO #', 'Date', 'Product', 'Qty', 'BOM', 'Assignee', 'Expected', 'Status', 'Actions'].map(h => <th key={h}>{h}</th>)}</tr>
               </thead>
               <tbody>
-                {filteredOrders.length > 0 ? (
-                  filteredOrders.map(order => {
-                    const compStatus = getOrderComponentStatus(order);
-                    return (
-                      <tr key={order.id}>
-                        <td>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedIds.includes(order.id)}
-                            onChange={() => handleSelectRow(order.id)}
-                          />
-                        </td>
-                        <td className="order-id-cell" style={{ fontWeight: '700' }}>{order.id}</td>
-                        <td>{order.date}</td>
-                        <td style={{ fontWeight: '600' }}>{order.product}</td>
-                        <td>
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '4px 10px',
-                            borderRadius: '12px',
-                            fontSize: '12px',
-                            fontWeight: '600',
-                            background: compStatus === 'Available' ? '#d1fae5' : '#fee2e2',
-                            color: compStatus === 'Available' ? '#065f46' : '#991b1b'
-                          }}>
-                            <span style={{
-                              width: '6px',
-                              height: '6px',
-                              borderRadius: '50%',
-                              backgroundColor: compStatus === 'Available' ? '#10b981' : '#ef4444'
-                            }}></span>
-                            {compStatus}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: '600' }}>{parseFloat(order.qty).toFixed(2)}</td>
-                        <td><span className="badge category-badge">{order.unit}</span></td>
-                        <td>
-                          <span className={`status-pill ${
-                            order.status === 'Done' ? 'status-active' :
-                            order.status === 'Draft' ? 'status-pending-badge' :
-                            order.status === 'Cancelled' ? 'status-warning-badge' : 'status-active'
-                          }`} style={{ background: order.status === 'In Progress' ? '#dbeafe' : '', color: order.status === 'In Progress' ? '#1e40af' : '' }}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td>
-                          <button className="btn btn-outline btn-small-table" onClick={() => handleEditOrder(order)}>
-                            Manage
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
-                      No manufacturing orders found matching your search.
-                    </td>
-                  </tr>
-                )}
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>No manufacturing orders found</td></tr>
+                ) : filtered.map((o, i) => (
+                  <motion.tr key={o.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }} className="sf-table-row-hover">
+                    <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', fontSize: 12 }}>{o.id}</td>
+                    <td>{o.date}</td>
+                    <td style={{ fontWeight: 600 }}>{o.product}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700 }}>{o.qty} {o.units}</td>
+                    <td style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: 11 }}>{o.bom || '—'}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{o.assignee}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{o.expected_completion || '—'}</td>
+                    <td><StatusBadge status={o.status} /></td>
+                    <td><button className="sf-btn" onClick={() => { setSelected(o); setView('form'); }}>Manage</button></td>
+                  </motion.tr>
+                ))}
               </tbody>
             </table>
           </div>
+          <div style={{ padding: '10px 20px', fontSize: 12, color: 'var(--text-secondary)', borderTop: '1px solid var(--card-border)' }}>
+            Showing {filtered.length} of {orders.length} orders
+          </div>
         </div>
-      )}
-
-      {/* 2. KANBAN VIEW */}
-      {activeView === 'kanban' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', alignItems: 'flex-start' }}>
-          {['Draft', 'Confirmed', 'In Progress', 'Done'].map(colStatus => {
-            const list = mfgOrders.filter(o => o.status === colStatus);
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, alignItems: 'start' }}>
+          {['Draft', 'Confirmed', 'In Progress', 'Quality Check', 'Completed', 'Cancelled'].map(col => {
+            const colOrders = filtered.filter(o => o.status === col || (col === 'Completed' && o.status === 'Done'));
+            const colors = STATUS_COLORS[col] || { bg: '#f3f4f6', color: '#6b7280', border: '#d1d5db' };
             return (
-              <div key={colStatus} className="card glass" style={{ padding: '16px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(250, 244, 235, 0.4)' }}>
-                <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '13px', color: 'var(--text-secondary)', letterSpacing: '0.5px', textAlign: 'left', borderBottom: '2px solid var(--card-border)', paddingBottom: '8px' }}>
-                  {colStatus} ({list.length})
-                </h4>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
-                  {list.map(order => (
-                    <div 
-                      key={order.id} 
-                      onClick={() => handleEditOrder(order)}
-                      style={{ 
-                        background: '#FFFBF7', 
-                        border: '1px solid var(--card-border)', 
-                        borderRadius: '8px', 
-                        padding: '12px', 
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.02)',
-                        transition: 'transform 0.2s'
-                      }}
-                      className="kanban-card-hover"
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: '700', color: 'var(--primary)', fontFamily: 'monospace' }}>{order.id}</span>
-                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{order.date}</span>
+              <div key={col} className="sf-panel" style={{ padding: 14, minHeight: 250 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: colors.color, background: colors.bg, border: `1px solid ${colors.border}`, padding: '3px 10px', borderRadius: 20 }}>{col}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 700 }}>{colOrders.length}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {colOrders.map(o => (
+                    <motion.div key={o.id} whileHover={{ scale: 1.02, y: -2 }} onClick={() => { setSelected(o); setView('form'); }}
+                      style={{ background: 'var(--bg-dark)', border: '1px solid var(--card-border)', borderRadius: 10, padding: 12, cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 800, color: '#f59e0b', fontFamily: 'monospace', fontSize: 12 }}>{o.id}</span>
+                        <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{o.date}</span>
                       </div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{order.product}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{order.workCenter}</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.02)', paddingTop: '8px' }}>
-                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Qty: {order.qty}</span>
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)' }}>{order.owner}</span>
-                      </div>
-                    </div>
+                      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.product}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>{o.qty} {o.units}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>👤 {o.assignee}</div>
+                    </motion.div>
                   ))}
-                  {list.length === 0 && (
-                    <div style={{ padding: '24px', border: '1px dashed var(--card-border)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '12px' }}>
-                      No orders
-                    </div>
-                  )}
+                  {colOrders.length === 0 && <div style={{ padding: 16, border: '1px dashed var(--card-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center' }}>Empty</div>}
                 </div>
               </div>
             );
           })}
         </div>
       )}
+    </motion.div>
+  );
+}
 
-      {/* 3. FORM VIEW */}
-      {activeView === 'form' && (
-        <div className="card glass" style={{ padding: '36px', boxSizing: 'border-box' }}>
-          
-          {/* Header Controls */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border)', paddingBottom: '16px', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button 
-                type="button" 
-                className="btn btn-outline" 
-                onClick={() => { stopTimer(); setActiveView('list'); }}
-                style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Back
-              </button>
-              
-              {orderStatus === 'Draft' && (
-                <button 
-                  type="button" 
-                  className="btn btn-outline" 
-                  onClick={handleConfirmOrder}
-                  style={{ marginTop: 0, borderColor: 'var(--primary)', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Confirm
-                </button>
-              )}
+// ─────────────────────────────────────────────
+// BOM TAB
+// ─────────────────────────────────────────────
+function BomTab({ currentUser, products }) {
+  const [boms, setBoms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [search, setSearch] = useState('');
 
-              {orderStatus === 'Confirmed' && (
-                <button 
-                  type="button" 
-                  className="btn" 
-                  onClick={handleStartProduction}
-                  style={{ marginTop: 0, background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Start
-                </button>
-              )}
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'System Administrator';
+  const canEdit = isAdmin || currentUser?.role === 'MANUFACTURING_USER';
 
-              {orderStatus === 'In Progress' && (
-                <button 
-                  type="button" 
-                  className="btn" 
-                  onClick={handleMarkAsDone}
-                  style={{ marginTop: 0, background: '#10b981', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Produce / Done
-                </button>
-              )}
+  const fetchBoms = useCallback(() => {
+    setLoading(true);
+    apiFetch('/boms').then(r => r.ok ? r.json() : []).then(d => { setBoms(d); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+  useEffect(() => { fetchBoms(); }, [fetchBoms]);
 
-              {(orderStatus === 'Draft' || orderStatus === 'Confirmed' || orderStatus === 'In Progress') && (
-                <button 
-                  type="button" 
-                  className="btn btn-outline" 
-                  onClick={handleCancelOrder}
-                  style={{ marginTop: 0, borderColor: '#ef4444', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Cancel
-                </button>
+  const filtered = boms.filter(b => !search || b.product?.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      {showForm && (
+        <BomForm bom={selected} products={products} onClose={() => { setShowForm(false); setSelected(null); }} onSaved={fetchBoms} />
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+        <input className="filter-control-input" placeholder="Search BOMs..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 260 }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{filtered.length} BOMs</span>
+          {canEdit && <button onClick={() => { setSelected(null); setShowForm(true); }} style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>+ New BOM</button>}
+        </div>
+      </div>
+      <div className="sf-panel" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="sf-table" style={{ fontSize: 13 }}>
+          <thead><tr>{['BOM ID', 'Reference', 'Product', 'Components', 'Work Orders', 'Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40 }}><Spinner /></td></tr>
+              : filtered.length === 0 ? <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>No BOMs found</td></tr>
+                : filtered.map((b, i) => (
+                  <motion.tr key={b.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="sf-table-row-hover">
+                    <td style={{ fontFamily: 'monospace', fontWeight: 700, color: '#f59e0b', fontSize: 12 }}>{b.id}</td>
+                    <td style={{ color: 'var(--text-secondary)' }}>{b.reference || '—'}</td>
+                    <td style={{ fontWeight: 700 }}>{b.product}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700 }}>{b.components?.length || 0} items</td>
+                    <td style={{ textAlign: 'center', fontWeight: 700 }}>{(b.workOrders || b.work_orders)?.length || 0} ops</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {canEdit && <button className="sf-btn" onClick={() => { setSelected(b); setShowForm(true); }}>Edit</button>}
+                        {canEdit && <button onClick={async () => {
+                          if (!window.confirm('Delete this BOM?')) return;
+                          await apiFetch(`/boms/${b.id}`, { method: 'DELETE' });
+                          toast.success('BOM deleted'); fetchBoms();
+                        }} style={{ background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 700, fontSize: 12 }}>Del</button>}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))}
+          </tbody>
+        </table>
+      </div>
+    </motion.div>
+  );
+}
+
+// BOM Form Modal
+function BomForm({ bom, products, onClose, onSaved }) {
+  const isNew = !bom;
+  const [ref, setRef] = useState(bom?.reference || '');
+  const [product, setProduct] = useState(bom?.product || '');
+  const [components, setComponents] = useState(bom?.components || [{ name: '', qty: 1, unit: 'Units' }]);
+  const [workOrders, setWorkOrders] = useState((bom?.workOrders || bom?.work_orders || [{ operation: 'Cutting', workCenter: 'Pre-Production', duration: 60 }]));
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!product.trim()) { toast.error('Product name required'); return; }
+    setSaving(true);
+    const count = await apiFetch('/boms').then(r => r.json()).then(d => d.length).catch(() => 0);
+    const body = { id: bom?.id || `BOM-${String(count + 1).padStart(3, '0')}`, reference: ref, product, components, workOrders };
+    try {
+      let res;
+      if (isNew) res = await apiFetch('/boms', { method: 'POST', body: JSON.stringify(body) });
+      else res = await apiFetch(`/boms/${bom.id}`, { method: 'PUT', body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data.success !== false) { toast.success(isNew ? 'BOM created!' : 'BOM updated!'); onSaved(); onClose(); }
+      else toast.error(data.message || 'Failed');
+    } catch { toast.error('Server unreachable'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        style={{ background: 'var(--card-bg)', borderRadius: 16, padding: 30, width: '100%', maxWidth: 680, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22, borderBottom: '1px solid var(--card-border)', paddingBottom: 14 }}>
+          <h3 style={{ margin: 0, fontWeight: 800, fontSize: 18 }}>{isNew ? 'New BOM Template' : `Edit ${bom.id}`}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-secondary)' }}>✕</button>
+        </div>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Product / Finished Good *</label>
+              {products.length > 0 ? (
+                <select className="filter-control-select" value={product} onChange={e => setProduct(e.target.value)} style={{ width: '100%', fontSize: 15 }}>
+                  <option value="">— Select Product —</option>
+                  {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                </select>
+              ) : (
+                <input className="filter-control-input" value={product} onChange={e => setProduct(e.target.value)} style={{ width: '100%' }} />
               )}
             </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span className="status-pill status-active" style={{ fontSize: '13px', fontWeight: '800', padding: '6px 12px', background: '#e0f2fe', color: '#0369a1', borderRadius: '12px' }}>
-                {selectedOrder ? selectedOrder.id : 'MO-XXXXXX (New)'}
-              </span>
-              <button 
-                type="button" 
-                className="btn btn-outline" 
-                onClick={() => onNavigate('audit-logs', 'Manufacturing')}
-                style={{ marginTop: 0, padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Logs
-              </button>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 5 }}>Reference Code</label>
+              <input className="filter-control-input" value={ref} onChange={e => setRef(e.target.value)} style={{ width: '100%' }} placeholder="e.g. WC-001" />
             </div>
           </div>
-
-          {/* Form Content */}
-          <form onSubmit={handleSaveForm} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              
-              {/* BOM Selector */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Bill of Materials</label>
-                <select
-                  className="filter-control-select"
-                  value={selectedBomId}
-                  onChange={(e) => handleBomSelect(e.target.value)}
-                  disabled={!canEdit || orderStatus !== 'Draft'}
-                >
-                  <option value="">-- No BOM Template --</option>
-                  {boms.map(b => (
-                    <option key={b.id} value={b.id}>{b.id} ({b.product} - Ref: {b.reference})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Finished Product */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Finished Product *</label>
-                <input
-                  type="text"
-                  className="filter-control-input"
-                  value={finishedProduct}
-                  onChange={(e) => setFinishedProduct(e.target.value)}
-                  disabled={!canEdit || orderStatus !== 'Draft'}
-                  placeholder="Finished Product Name"
-                  required
-                />
-              </div>
-
-              {/* Quantity */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Quantity to Produce *</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input
-                    type="number"
-                    className="filter-control-input"
-                    value={qty}
-                    onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    disabled={!canEdit || orderStatus !== 'Draft'}
-                    min={1}
-                    style={{ flex: 1 }}
-                    required
-                  />
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Units</span>
-                </div>
-              </div>
-
-              {/* Scheduled Date */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Scheduled Date *</label>
-                <input
-                  type="date"
-                  className="filter-control-input"
-                  value={scheduledDate}
-                  onChange={(e) => setScheduledDate(e.target.value)}
-                  disabled={!canEdit || orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                  required
-                />
-              </div>
-
-              {/* Supervisor / Assignee */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left', gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Assignee / Supervisor</label>
-                <select
-                  className="filter-control-select"
-                  value={assignee}
-                  onChange={(e) => setAssignee(e.target.value)}
-                  disabled={!canEdit || orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                >
-                  {ASSIGNEE_LIST.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-              </div>
-
+          {/* Components */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>🧱 COMPONENTS</label>
+              <button type="button" onClick={() => setComponents(p => [...p, { name: '', qty: 1, unit: 'Units' }])} style={{ background: '#fef3c7', color: '#b45309', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>+ Add</button>
             </div>
-
-            {/* Tab Selector Bar */}
-            <div style={{ display: 'flex', borderBottom: '2px solid var(--card-border)', marginTop: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setActiveTab('components')}
-                style={{
-                  padding: '12px 24px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: activeTab === 'components' ? '3px solid var(--primary)' : 'none',
-                  fontWeight: '700',
-                  color: activeTab === 'components' ? 'var(--primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '15px'
-                }}
-              >
-                Components
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('work-orders')}
-                style={{
-                  padding: '12px 24px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: activeTab === 'work-orders' ? '3px solid var(--primary)' : 'none',
-                  fontWeight: '700',
-                  color: activeTab === 'work-orders' ? 'var(--primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontSize: '15px'
-                }}
-              >
-                Work Orders
-              </button>
-            </div>
-
-            {/* Tab Contents: Components */}
-            {activeTab === 'components' && (
-              <div style={{ textAlign: 'left' }}>
-                <table className="erp-dashboard-table" style={{ marginTop: '10px' }}>
-                  <thead>
-                    <tr>
-                      <th>Component</th>
-                      <th style={{ width: '130px' }}>Availability</th>
-                      <th style={{ width: '120px' }}>To Consume</th>
-                      <th style={{ width: '120px' }}>Consumed</th>
-                      <th style={{ width: '100px' }}>Units</th>
-                      {orderStatus === 'Draft' && <th style={{ width: '60px' }}></th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {components.map((line, idx) => {
-                      const available = isComponentAvailable(line);
-                      return (
-                        <tr key={line.id}>
-                          <td>
-                            {orderStatus === 'Draft' ? (
-                              <select
-                                className="filter-control-select"
-                                value={line.name}
-                                onChange={(e) => handleUpdateComponentLine(line.id, 'name', e.target.value)}
-                                style={{ width: '100%' }}
-                              >
-                                {COMPONENT_OPTIONS.map(cName => (
-                                  <option key={cName} value={cName}>{cName}</option>
-                                ))}
-                              </select>
-                            ) : (
-                              <span>{line.name}</span>
-                            )}
-                          </td>
-                          <td>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '2px 8px',
-                              borderRadius: '10px',
-                              fontSize: '11px',
-                              fontWeight: '700',
-                              background: available ? '#e6fffa' : '#fef2f2',
-                              color: available ? '#047857' : '#b91c1c'
-                            }}>
-                              <span style={{
-                                width: '5px',
-                                height: '5px',
-                                borderRadius: '50%',
-                                backgroundColor: available ? '#059669' : '#dc2626'
-                              }}></span>
-                              {available ? 'Available' : 'Not Available'}
-                            </span>
-                          </td>
-                          <td>
-                            {orderStatus === 'Draft' ? (
-                              <input
-                                type="number"
-                                className="filter-control-input"
-                                value={line.qty}
-                                onChange={(e) => handleUpdateComponentLine(line.id, 'qty', Math.max(1, parseInt(e.target.value) || 1))}
-                                min={1}
-                              />
-                            ) : (
-                              <span>{line.qty * qty}</span>
-                            )}
-                          </td>
-                          <td>
-                            <input
-                              type="number"
-                              className="filter-control-input"
-                              value={line.consumed || 0}
-                              onChange={(e) => handleUpdateComponentLine(line.id, 'consumed', Math.max(0, parseInt(e.target.value) || 0))}
-                              disabled={!canEdit || orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                              min={0}
-                            />
-                          </td>
-                          <td style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>{line.unit}</td>
-                          {orderStatus === 'Draft' && (
-                            <td>
-                              <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={() => handleRemoveComponentLine(line.id)}
-                                style={{ padding: '6px 10px', borderColor: '#ef4444', color: '#ef4444' }}
-                              >
-                                🗑️
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                    {components.length === 0 && (
-                      <tr>
-                        <td colSpan={orderStatus === 'Draft' ? 6 : 5} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)' }}>
-                          No components configured. Select a BOM template to load components.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                {orderStatus === 'Draft' && (
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={handleAddComponentLine}
-                    style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                  >
-                    ＋ Add a product
-                  </button>
+            {components.map((c, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
+                {products.length > 0 ? (
+                  <select className="filter-control-select" value={c.name} onChange={e => { const n = [...components]; n[i].name = e.target.value; setComponents(n); }}>
+                    <option value="">— Material —</option>
+                    {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  </select>
+                ) : (
+                  <input className="filter-control-input" value={c.name} onChange={e => { const n = [...components]; n[i].name = e.target.value; setComponents(n); }} placeholder="Material name" />
                 )}
+                <input type="number" className="filter-control-input" value={c.qty} onChange={e => { const n = [...components]; n[i].qty = parseFloat(e.target.value) || 0; setComponents(n); }} placeholder="Qty" min={0} />
+                <select className="filter-control-select" value={c.unit || 'Units'} onChange={e => { const n = [...components]; n[i].unit = e.target.value; setComponents(n); }}>
+                  {['Units', 'Kg', 'Meters', 'Pcs', 'Liters', 'Sq. Ft'].map(u => <option key={u}>{u}</option>)}
+                </select>
+                <button type="button" onClick={() => setComponents(p => p.filter((_, idx) => idx !== i))} style={{ background: '#fee2e2', border: 'none', borderRadius: 6, padding: '0 10px', cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}>✕</button>
               </div>
-            )}
-
-            {/* Tab Contents: Work Orders */}
-            {activeTab === 'work-orders' && (
-              <div style={{ textAlign: 'left' }}>
-                <table className="erp-dashboard-table" style={{ marginTop: '10px' }}>
-                  <thead>
-                    <tr>
-                      <th>Operations</th>
-                      <th>Work Center</th>
-                      <th style={{ width: '130px' }}>Duration (min)</th>
-                      <th style={{ width: '130px' }}>Real Duration</th>
-                      <th style={{ width: '100px' }}>Actions</th>
-                      {orderStatus === 'Draft' && <th style={{ width: '60px' }}></th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {operations.map((line, idx) => (
-                      <tr key={line.id}>
-                        <td>
-                          {orderStatus === 'Draft' ? (
-                            <input
-                              type="text"
-                              className="filter-control-input"
-                              value={line.operation}
-                              onChange={(e) => handleUpdateOperationLine(line.id, 'operation', e.target.value)}
-                              placeholder="Operation details"
-                            />
-                          ) : (
-                            <span>{line.operation}</span>
-                          )}
-                        </td>
-                        <td>
-                          {orderStatus === 'Draft' ? (
-                            <select
-                              className="filter-control-select"
-                              value={line.workCenter}
-                              onChange={(e) => handleUpdateOperationLine(line.id, 'workCenter', e.target.value)}
-                              style={{ width: '100%' }}
-                            >
-                              {WORK_CENTER_LIST.map(wc => (
-                                <option key={wc} value={wc}>{wc}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="badge category-badge">{line.workCenter}</span>
-                          )}
-                        </td>
-                        <td>
-                          {orderStatus === 'Draft' ? (
-                            <input
-                              type="number"
-                              className="filter-control-input"
-                              value={line.duration}
-                              onChange={(e) => handleUpdateOperationLine(line.id, 'duration', Math.max(1, parseInt(e.target.value) || 1))}
-                              min={1}
-                            />
-                          ) : (
-                            <span>{line.duration} min</span>
-                          )}
-                        </td>
-                        <td style={{ fontFamily: 'monospace', fontWeight: '700', color: activeTimerId === line.id ? '#2563eb' : 'var(--text-primary)' }}>
-                          {activeTimerId === line.id ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="spin-icon">⏳</span>
-                              {formatRealDuration(line.realDuration)}
-                            </span>
-                          ) : (
-                            <span>{formatRealDuration(line.realDuration)}</span>
-                          )}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn btn-outline"
-                            onClick={() => toggleOperationTimer(line.id)}
-                            disabled={orderStatus !== 'In Progress'}
-                            style={{ 
-                              padding: '4px 10px', 
-                              fontSize: '11px',
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '4px',
-                              borderColor: activeTimerId === line.id ? '#f59e0b' : 'var(--primary)',
-                              color: activeTimerId === line.id ? '#d97706' : 'var(--primary)'
-                            }}
-                          >
-                            {activeTimerId === line.id ? (
-                              <>
-                                <svg style={{ width: '12px', height: '12px' }} fill="currentColor" viewBox="0 0 24 24">
-                                  <rect x="6" y="4" width="4" height="16" />
-                                  <rect x="14" y="4" width="4" height="16" />
-                                </svg>
-                                Pause
-                              </>
-                            ) : (
-                              <>
-                                <svg style={{ width: '12px', height: '12px' }} fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M8 5v14l11-7z" />
-                                </svg>
-                                Start
-                              </>
-                            )}
-                          </button>
-                        </td>
-                        {orderStatus === 'Draft' && (
-                          <td>
-                            <button
-                              type="button"
-                              className="btn btn-outline"
-                              onClick={() => handleRemoveOperationLine(line.id)}
-                              style={{ padding: '6px 10px', borderColor: '#ef4444', color: '#ef4444' }}
-                            >
-                              🗑️
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                    {operations.length === 0 && (
-                      <tr>
-                        <td colSpan={orderStatus === 'Draft' ? 6 : 5} style={{ textAlign: 'center', padding: '16px', color: 'var(--text-secondary)' }}>
-                          No operations configured. Select a BOM template to load operations.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                {orderStatus === 'Draft' && (
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={handleAddOperationLine}
-                    style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-                  >
-                    ＋ Add a line
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Save Buttons Panel */}
-            <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button 
-                type="button" 
-                className="btn btn-outline" 
-                onClick={() => { stopTimer(); setActiveView('list'); }}
-                style={{ marginTop: 0 }}
-              >
-                Close
-              </button>
-              {canEdit && (
-                <button 
-                  type="button" 
-                  className="btn btn-primary"
-                  onClick={handleSaveForm}
-                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                  style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
-                >
-                  Save
-                </button>
-              )}
+            ))}
+          </div>
+          {/* Work Orders */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>⚙️ WORK ORDERS / OPERATIONS</label>
+              <button type="button" onClick={() => setWorkOrders(p => [...p, { operation: '', workCenter: 'Assembly Line', duration: 60 }])} style={{ background: '#fef3c7', color: '#b45309', border: 'none', borderRadius: 6, padding: '4px 12px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>+ Add</button>
             </div>
+            {workOrders.map((w, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr auto', gap: 8, marginBottom: 8 }}>
+                <input className="filter-control-input" value={w.operation} onChange={e => { const n = [...workOrders]; n[i].operation = e.target.value; setWorkOrders(n); }} placeholder="Operation name" />
+                <select className="filter-control-select" value={w.workCenter} onChange={e => { const n = [...workOrders]; n[i].workCenter = e.target.value; setWorkOrders(n); }}>
+                  {['Pre-Production', 'Assembly Line', 'Finishing Line', 'Upholstery Dept', 'Quality Control', 'Packaging'].map(wc => <option key={wc}>{wc}</option>)}
+                </select>
+                <input type="number" className="filter-control-input" value={w.duration} onChange={e => { const n = [...workOrders]; n[i].duration = parseInt(e.target.value) || 0; setWorkOrders(n); }} placeholder="Mins" min={0} />
+                <button type="button" onClick={() => setWorkOrders(p => p.filter((_, idx) => idx !== i))} style={{ background: '#fee2e2', border: 'none', borderRadius: 6, padding: '0 10px', cursor: 'pointer', color: '#dc2626', fontWeight: 700 }}>✕</button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 8, borderTop: '1px solid var(--card-border)' }}>
+            <button type="submit" disabled={saving} style={{ flex: 1, background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+              {saving ? 'Saving...' : isNew ? 'Create BOM' : 'Update BOM'}
+            </button>
+            <button type="button" onClick={onClose} style={{ flex: 1, background: 'var(--card-border)', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
 
-          </form>
+// ─────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────
+function ManufacturingOrders({ onNavigate, currentUser }) {
+  const role = currentUser?.role || 'PENDING';
+  const isAdmin = role === 'ADMIN' || role === 'System Administrator';
+  const isMfg = role === 'MANUFACTURING_USER';
+  const isOwner = role === 'BUSINESS_OWNER';
+  const hasAccess = isAdmin || isMfg || isOwner;
+
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [boms, setBoms] = useState([]);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    if (!hasAccess) return;
+    apiFetch('/boms').then(r => r.ok ? r.json() : []).then(setBoms).catch(() => {});
+    apiFetch('/products').then(r => r.ok ? r.json() : []).then(setProducts).catch(() => {});
+  }, [hasAccess]);
+
+  if (!hasAccess) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: 60, textAlign: 'center' }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20, fontSize: 32 }}>🔒</div>
+        <h2 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800 }}>Manufacturing Module — Access Restricted</h2>
+        <p style={{ color: 'var(--text-secondary)', maxWidth: 420, fontSize: 14, lineHeight: 1.6 }}>
+          Your role (<strong>{role}</strong>) does not have access to Manufacturing. Contact your Admin to be assigned the <strong>Manufacturing User</strong> role.
+        </p>
+        <button onClick={() => onNavigate('dashboard')} style={{ marginTop: 24, background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 28px', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+          ← Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: 'dashboard', label: '📊 Dashboard' },
+    { id: 'orders', label: '⚙️ Manufacturing Orders' },
+    { id: 'bom', label: '📋 Bill of Materials' },
+  ];
+
+  return (
+    <div className="page-content animated fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--text-primary)' }}>Manufacturing Module</h2>
+          <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: 14 }}>Production planning, BOM management, work orders, quality control</p>
         </div>
-      )}
+        <span style={{ padding: '4px 12px', background: '#fef3c7', color: '#b45309', borderRadius: 20, fontSize: 12, fontWeight: 700, border: '1px solid #fcd34d' }}>
+          🟡 ERP Connected
+        </span>
+      </div>
 
+      <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid var(--card-border)' }}>
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: 700,
+              color: activeTab === tab.id ? '#f59e0b' : 'var(--text-secondary)',
+              borderBottom: activeTab === tab.id ? '2px solid #f59e0b' : '2px solid transparent',
+              marginBottom: -2, transition: 'all 0.2s' }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+          {activeTab === 'dashboard' && <ManufacturingDashboard onNavigateToOrders={() => setActiveTab('orders')} />}
+          {activeTab === 'orders' && <ManufacturingOrdersTab currentUser={currentUser} boms={boms} products={products} />}
+          {activeTab === 'bom' && <BomTab currentUser={currentUser} products={products} />}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
