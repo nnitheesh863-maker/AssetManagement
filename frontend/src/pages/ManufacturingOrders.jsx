@@ -128,7 +128,7 @@ function ManufacturingOrders({ onNavigate, currentUser }) {
   const [activeTimerId, setActiveTimerId] = useState(null);
   const [timerIntervalId, setTimerIntervalId] = useState(null);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
     const token = localStorage.getItem('assetflow_token');

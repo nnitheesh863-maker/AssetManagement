@@ -33,7 +33,7 @@ function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, search
     const userId = currentUser.loginId || currentUser.login_id;
     try {
       const token = localStorage.getItem('assetflow_token');
-      const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      const res = await fetch(`http://127.0.0.1:5000/api/users/${userId}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',

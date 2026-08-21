@@ -56,7 +56,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   box-sizing: border-box;
   padding: 20px;
   background: linear-gradient(rgba(62, 47, 39, 0.3), rgba(62, 47, 39, 0.45)), url('./assets/login-bg.png') no-repeat center center/cover;
@@ -76,8 +77,8 @@ body {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 600px;
-  /* Scaled up to 600px width on desktop */
+  max-width: 450px;
+  /* Reduced to 450px width on desktop for compact design */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,8 +86,8 @@ body {
 }
 
 .auth-container.register-container {
-  max-width: 600px;
-  /* Scaled up to 600px width on desktop */
+  max-width: 450px;
+  /* Reduced to 450px width on desktop for compact design */
 }
 
 /* Brand Logo */
@@ -1895,11 +1896,12 @@ body {
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 3.5px;
+  letter-spacing: 2px;
   background: linear-gradient(90deg, #fffae6 0%, #d4af37 50%, #fffae6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
+  text-align: center;
   filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.2));
 }
 

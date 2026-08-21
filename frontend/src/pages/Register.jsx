@@ -60,7 +60,7 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
     }
 
     // Submit registration to backend Mongoose database
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = 'http://127.0.0.1:5000/api';
     fetch(`${API_BASE_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -103,39 +103,58 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
         <p className="brand-subtitle">Premium Asset & Inventory Management</p>
       </div>
 
-      <div className="card glass signup-card">
-        <h2>Sign up Page</h2>
-        <form onSubmit={handleRegister}>
-          <div className="input-group">
-            <label htmlFor="regLoginId">Enter Login Id</label>
-            <input
-              type="text"
-              id="regLoginId"
-              value={loginId}
-              onChange={(e) => setLoginId(e.target.value)}
-              placeholder="6-12 characters"
-              minLength={6}
-              maxLength={12}
-              required
-            />
+      <div className="card glass auth-card-premium">
+        <h2 className="form-heading-premium">Register Account</h2>
+        <form onSubmit={handleRegister} autoComplete="off">
+          
+          {/* Login ID */}
+          <div className="input-group-premium">
+            <label htmlFor="regLoginId">Login ID</label>
+            <div className="input-with-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="input-field-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <input
+                type="text"
+                id="regLoginId"
+                value={loginId}
+                onChange={(e) => setLoginId(e.target.value)}
+                placeholder="Create unique Login ID"
+                minLength={6}
+                maxLength={12}
+                required
+                autoComplete="off"
+              />
+            </div>
             <div className="input-hint">Length must be between 6 and 12 characters.</div>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="regEmail">Enter Email Id</label>
-            <input
-              type="email"
-              id="regEmail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="example@mail.com"
-              required
-            />
+          {/* Email ID */}
+          <div className="input-group-premium">
+            <label htmlFor="regEmail">Email ID</label>
+            <div className="input-with-icon">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="input-field-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <input
+                type="email"
+                id="regEmail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your Email ID"
+                required
+                autoComplete="off"
+              />
+            </div>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="regPassword">Enter Password</label>
-            <div className="password-wrapper">
+          {/* Password */}
+          <div className="input-group-premium">
+            <label htmlFor="regPassword">Password</label>
+            <div className="password-wrapper-premium">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="input-field-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
               <input
                 type={showPassword ? 'text' : 'password'}
                 id="regPassword"
@@ -143,10 +162,11 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Create strong password"
                 required
+                autoComplete="new-password"
               />
               <button
                 type="button"
-                className="password-toggle-btn"
+                className="password-toggle-btn-premium"
                 onClick={() => setShowPassword(!showPassword)}
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
@@ -181,20 +201,25 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
             )}
           </div>
 
-          <div className="input-group">
-            <label htmlFor="rePassword">Re-Enter Password</label>
-            <div className="password-wrapper">
+          {/* Re-enter Password */}
+          <div className="input-group-premium">
+            <label htmlFor="rePassword">Confirm Password</label>
+            <div className="password-wrapper-premium">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="input-field-icon">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
               <input
                 type={showRePassword ? 'text' : 'password'}
                 id="rePassword"
                 value={rePassword}
                 onChange={(e) => setRePassword(e.target.value)}
-                placeholder="Confirm password"
+                placeholder="Confirm your password"
                 required
+                autoComplete="new-password"
               />
               <button
                 type="button"
-                className="password-toggle-btn"
+                className="password-toggle-btn-premium"
                 onClick={() => setShowRePassword(!showRePassword)}
                 title={showRePassword ? 'Hide password' : 'Show password'}
               >
@@ -211,7 +236,7 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
               </button>
             </div>
             {rePassword.length > 0 && password !== rePassword && (
-              <div className="input-warning">Passwords do not match.</div>
+              <div className="input-warning" style={{ marginTop: '5px' }}>Passwords do not match.</div>
             )}
           </div>
 
@@ -225,12 +250,12 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary">SIGN UP</button>
+          <button type="submit" className="btn-premium">SIGN UP</button>
         </form>
 
-        <div className="card-footer single-footer">
+        <div className="card-footer single-footer" style={{ marginTop: '24px', textAlign: 'center' }}>
           <span className="normal-text">Already registered? </span>
-          <span className="link-text highlighted" onClick={onNavigateToLogin}>Sign In</span>
+          <span className="link-text highlighted" onClick={onNavigateToLogin} style={{ cursor: 'pointer', fontWeight: '700', color: '#CF8E6D' }}>Sign In</span>
         </div>
       </div>
     </div>

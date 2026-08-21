@@ -18,7 +18,7 @@ function Dashboard({ currentUser, onNavigate }) {
       try {
         setLoading(true);
         const token = localStorage.getItem('assetflow_token');
-        const res = await fetch('http://localhost:5000/api/dashboard/analytics', {
+        const res = await fetch('http://127.0.0.1:5000/api/dashboard/analytics', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -154,8 +154,8 @@ function Dashboard({ currentUser, onNavigate }) {
         {/* ROLE-BASED KPI CARDS */}
         <motion.div className="sf-kpi-grid" variants={containerVariants}>
           
-          {/* SALES CARD (ALL ROLES OPERATIONAL VIEW) */}
-          {role && (
+          {/* SALES CARD */}
+          {(role === 'System Administrator' || role === 'ADMIN' || role === 'BUSINESS_OWNER' || role === 'SALES_USER') && (
             <motion.div className="sf-kpi-card inverted" variants={cardVariants}>
               <div className="sf-kpi-header">
                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -182,8 +182,8 @@ function Dashboard({ currentUser, onNavigate }) {
             </motion.div>
           )}
 
-          {/* PURCHASE CARD (ALL ROLES) */}
-          {role && (
+          {/* PURCHASE CARD */}
+          {(role === 'System Administrator' || role === 'ADMIN' || role === 'BUSINESS_OWNER' || role === 'PURCHASE_USER') && (
             <motion.div className="sf-kpi-card" variants={cardVariants}>
               <div className="sf-kpi-header">
                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -196,8 +196,8 @@ function Dashboard({ currentUser, onNavigate }) {
             </motion.div>
           )}
 
-          {/* MANUFACTURING CARD (ALL ROLES) */}
-          {role && (
+          {/* MANUFACTURING CARD */}
+          {(role === 'System Administrator' || role === 'ADMIN' || role === 'BUSINESS_OWNER' || role === 'MANUFACTURING_USER') && (
             <motion.div className="sf-kpi-card" variants={cardVariants}>
               <div className="sf-kpi-header">
                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
@@ -210,8 +210,8 @@ function Dashboard({ currentUser, onNavigate }) {
             </motion.div>
           )}
 
-          {/* INVENTORY / LOW STOCK CARD (ALL ROLES) */}
-          {role && (
+          {/* INVENTORY / LOW STOCK CARD */}
+          {(role === 'System Administrator' || role === 'ADMIN' || role === 'BUSINESS_OWNER' || role === 'INVENTORY_MANAGER') && (
             <motion.div className="sf-kpi-card" variants={cardVariants}>
               <div className="sf-kpi-header">
                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>

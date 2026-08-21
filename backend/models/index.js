@@ -36,17 +36,25 @@ const salesOrderSchema = new mongoose.Schema({
   owner: { type: String }
 });
 
-// Purchase Order Schema
+// Purchase Order Schema (enhanced)
 const purchaseOrderSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   date: { type: String },
   vendor: { type: String },
+  vendor_id: { type: String, default: '' },
   address: { type: String },
   responsible: { type: String },
-  item: { type: String },
-  qty: { type: Number },
-  received: { type: Number },
-  status: { type: String },
+  // Legacy single-item fields (kept for backward compat)
+  item: { type: String, default: '' },
+  qty: { type: Number, default: 0 },
+  received: { type: Number, default: 0 },
+  // Enhanced multi-item support
+  items: { type: Array, default: [] },
+  total: { type: Number, default: 0 },
+  expected_date: { type: String, default: '' },
+  payment_terms: { type: String, default: 'Net 30' },
+  notes: { type: String, default: '' },
+  status: { type: String, default: 'Draft' },
   owner: { type: String }
 });
 
@@ -104,6 +112,47 @@ const bomSchema = new mongoose.Schema({
   work_orders: { type: Array, default: [] }
 });
 
+// Customer Schema
+const customerSchema = new mongoose.Schema({
+  customer_id: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  phone: { type: String, default: '' },
+  email: { type: String, default: '' },
+  address: { type: String, default: '' },
+  total_orders: { type: Number, default: 0 },
+  total_revenue: { type: Number, default: 0 },
+  created_at: { type: Date, default: Date.now }
+});
+
+// Vendor Schema
+const vendorSchema = new mongoose.Schema({
+  vendor_code: { type: String, required: true, unique: true },
+  company_name: { type: String, required: true },
+  contact_person: { type: String, default: '' },
+  phone: { type: String, default: '' },
+  email: { type: String, default: '' },
+  address: { type: String, default: '' },
+  gst_number: { type: String, default: '' },
+  payment_terms: { type: String, default: 'Net 30' },
+  status: { type: String, enum: ['Active', 'Inactive', 'Blacklisted'], default: 'Active' },
+  total_orders: { type: Number, default: 0 },
+  total_purchase_value: { type: Number, default: 0 },
+  created_at: { type: Date, default: Date.now }
+});
+
+// Goods Receipt Schema
+const goodsReceiptSchema = new mongoose.Schema({
+  receipt_number: { type: String, required: true, unique: true },
+  purchase_order_id: { type: String, required: true },
+  vendor: { type: String },
+  items: { type: Array, default: [] }, // [{materialName, orderedQty, receivedQty, damagedQty, qualityStatus}]
+  received_by: { type: String },
+  received_date: { type: String },
+  quality_status: { type: String, enum: ['Accepted', 'Partially Accepted', 'Rejected'], default: 'Accepted' },
+  notes: { type: String, default: '' },
+  created_at: { type: Date, default: Date.now }
+});
+
 // Stock Ledger Schema
 const stockLedgerSchema = new mongoose.Schema({
   product_id: { type: String, required: true },
@@ -133,6 +182,9 @@ const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 const Product = mongoose.model('Product', productSchema);
 const Bom = mongoose.model('Bom', bomSchema);
 const StockLedger = mongoose.model('StockLedger', stockLedgerSchema);
+const Customer = mongoose.model('Customer', customerSchema);
+const Vendor = mongoose.model('Vendor', vendorSchema);
+const GoodsReceipt = mongoose.model('GoodsReceipt', goodsReceiptSchema);
 
 module.exports = {
   User,
@@ -142,5 +194,8 @@ module.exports = {
   AuditLog,
   Product,
   Bom,
-  StockLedger
+  StockLedger,
+  Customer,
+  Vendor,
+  GoodsReceipt
 };

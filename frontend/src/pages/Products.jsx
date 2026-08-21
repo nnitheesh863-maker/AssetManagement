@@ -43,7 +43,7 @@ function Products({ currentUser }) {
   const [salesPrice, setSalesPrice] = useState(100);
   const [costPrice, setCostPrice] = useState(60);
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'http://127.0.0.1:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
     const token = localStorage.getItem('assetflow_token');
