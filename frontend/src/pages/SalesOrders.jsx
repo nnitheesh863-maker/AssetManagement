@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { mockDashboardData } from '../data/mockData';
 
 // Product prices map
@@ -264,6 +265,7 @@ function SalesOrders({ onNavigate }) {
       saveOrders([...salesOrders, newOrder]);
     }
 
+    toast.success('Order saved successfully');
     setActiveView('list');
   };
 
@@ -298,6 +300,7 @@ function SalesOrders({ onNavigate }) {
         return o;
       });
       saveOrders(updated);
+      toast.success('Order confirmed successfully', { icon: '🤝' });
     }
   };
 
@@ -336,6 +339,7 @@ function SalesOrders({ onNavigate }) {
         return o;
       });
       saveOrders(updated);
+      toast.success(nextStatus === 'Delivered' ? 'Order fully delivered! 🎉' : 'Order partially delivered!', { icon: nextStatus === 'Delivered' ? '✅' : '📦' });
     }
   };
 
@@ -369,6 +373,7 @@ function SalesOrders({ onNavigate }) {
         return o;
       });
       saveOrders(updated);
+      toast.error('Order has been cancelled');
     }
   };
 
@@ -424,7 +429,7 @@ function SalesOrders({ onNavigate }) {
 
       {/* 1. LIST VIEW */}
       {activeView === 'list' && (
-        <div className="card glass erp-dashboard-panel" style={{ padding: '24px' }}>
+        <div className="sf-panel">
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <input
               type="text"
@@ -439,8 +444,8 @@ function SalesOrders({ onNavigate }) {
             </span>
           </div>
 
-          <div className="table-container-scroll">
-            <table className="erp-dashboard-table">
+          <div className="sf-table-wrapper">
+            <table className="sf-table">
               <thead>
                 <tr>
                   <th>Order ID</th>
@@ -456,7 +461,7 @@ function SalesOrders({ onNavigate }) {
               <tbody>
                 {filteredOrders.length > 0 ? (
                   filteredOrders.map(order => (
-                    <tr key={order.id}>
+                    <tr key={order.id} className="sf-table-row-hover" style={{ transition: 'background-color 0.2s' }}>
                       <td className="order-id-cell">{order.id}</td>
                       <td>{order.date}</td>
                       <td style={{ fontWeight: '600' }}>{order.customer}</td>
@@ -466,16 +471,16 @@ function SalesOrders({ onNavigate }) {
                         ${(order.status === 'Delivered' || order.status === 'Partially Delivered' ? order.delivered : order.qty) * order.price}
                       </td>
                       <td>
-                        <span className={`status-pill ${
-                          order.status === 'Delivered' ? 'status-active' :
-                          order.status === 'Draft' ? 'status-pending-badge' :
-                          order.status === 'Cancelled' ? 'status-warning-badge' : 'status-active'
-                        }`} style={{ background: order.status === 'Partially Delivered' ? '#fef3c7' : '', color: order.status === 'Partially Delivered' ? '#d97706' : '' }}>
+                        <span className={`sf-badge ${
+                          order.status === 'Delivered' ? 'done' :
+                          order.status === 'Draft' ? 'draft' :
+                          order.status === 'Cancelled' ? 'critical' : 'inprogress'
+                        }`}>
                           {order.status}
                         </span>
                       </td>
                       <td>
-                        <button className="btn btn-outline btn-small-table" onClick={() => handleEditOrder(order)}>
+                        <button className="sf-btn" onClick={() => handleEditOrder(order)}>
                           Manage
                         </button>
                       </td>
@@ -502,8 +507,8 @@ function SalesOrders({ onNavigate }) {
           {['Draft', 'Confirmed', 'Partially Delivered', 'Delivered'].map(colStatus => {
             const list = salesOrders.filter(o => o.status === colStatus);
             return (
-              <div key={colStatus} className="card glass" style={{ padding: '16px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(250, 244, 235, 0.4)' }}>
-                <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '13px', color: 'var(--text-secondary)', letterSpacing: '0.5px', textAlign: 'left', borderBottom: '2px solid var(--card-border)', paddingBottom: '8px' }}>
+              <div key={colStatus} className="sf-panel" style={{ padding: '16px', minHeight: '400px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <h4 style={{ margin: 0, textTransform: 'uppercase', fontSize: '13px', color: 'var(--sf-text-muted)', letterSpacing: '0.5px', textAlign: 'left', borderBottom: '1px solid var(--sf-panel-border)', paddingBottom: '8px' }}>
                   {colStatus} ({list.length})
                 </h4>
                 
@@ -513,14 +518,13 @@ function SalesOrders({ onNavigate }) {
                       key={order.id} 
                       onClick={() => handleEditOrder(order)}
                       style={{ 
-                        background: '#FFFBF7', 
-                        border: '1px solid var(--card-border)', 
+                        background: 'var(--sf-bg)', 
+                        border: '1px solid var(--sf-panel-border)', 
                         borderRadius: '8px', 
                         padding: '12px', 
                         cursor: 'pointer',
                         textAlign: 'left',
-                        boxShadow: '0 2px 5px rgba(0,0,0,0.02)',
-                        transition: 'transform 0.2s'
+                        transition: 'transform 0.2s, border-color 0.2s'
                       }}
                       className="kanban-card-hover"
                     >
@@ -528,11 +532,11 @@ function SalesOrders({ onNavigate }) {
                         <span style={{ fontWeight: '700', color: 'var(--primary)', fontFamily: 'monospace' }}>{order.id}</span>
                         <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{order.date}</span>
                       </div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{order.customer}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>{order.product}</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(0,0,0,0.02)', paddingTop: '8px' }}>
-                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Qty: {order.qty}</span>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--sf-text)', marginBottom: '4px' }}>{order.customer}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--sf-text-muted)', marginBottom: '8px' }}>{order.product}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--sf-panel-border)', paddingTop: '8px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--sf-text-muted)' }}>Qty: {order.qty}</span>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--sf-text)' }}>
                           ${(order.status === 'Delivered' || order.status === 'Partially Delivered' ? order.delivered : order.qty) * order.price}
                         </span>
                       </div>
@@ -552,9 +556,9 @@ function SalesOrders({ onNavigate }) {
 
       {/* 3. FORM VIEW */}
       {activeView === 'form' && (
-        <div className="card glass" style={{ padding: '36px', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border)', paddingBottom: '16px', marginBottom: '24px' }}>
-            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
+        <div className="sf-panel" style={{ padding: '36px', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--sf-panel-border)', paddingBottom: '16px', marginBottom: '24px' }}>
+            <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--sf-text)' }}>
               {selectedOrder ? `Edit Sales Order ${selectedOrder.id}` : 'New Sales Order'}
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

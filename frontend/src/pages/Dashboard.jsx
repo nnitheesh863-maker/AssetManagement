@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import CountUpModule from 'react-countup';
+const CountUp = CountUpModule.default ? CountUpModule.default : CountUpModule;
 import './Dashboard.css';
 import { mockDashboardData } from '../data/mockData';
 
@@ -28,6 +31,21 @@ function Dashboard({ currentUser, onNavigate }) {
     { product: 'Varnish 5L', onHand: 4, min: 10, status: 'Critical' }
   ];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } }
+  };
+
+  const chartVariants = {
+    hidden: { pathLength: 0, opacity: 0 },
+    show: { pathLength: 1, opacity: 1, transition: { duration: 1.5, ease: "easeInOut" } }
+  };
+
   return (
     <div className="sf-container">
       {/* SVG Definitions */}
@@ -46,63 +64,63 @@ function Dashboard({ currentUser, onNavigate }) {
         <div className="sf-dashboard-content">
           
           {/* ROW 1: KPI CARDS */}
-          <div className="sf-kpi-grid">
-             <div className="sf-kpi-card">
+          <motion.div className="sf-kpi-grid" variants={containerVariants} initial="hidden" animate="show">
+             <motion.div className="sf-kpi-card inverted" variants={cardVariants}>
                <div className="sf-kpi-header">
                  <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                  Total Sales
                </div>
-               <div className="sf-kpi-value">₹{(totalSalesValue / 100000).toFixed(1)}L</div>
+               <div className="sf-kpi-value">₹<CountUp end={totalSalesValue / 100000} decimals={1} duration={2} />L</div>
                <div className="sf-kpi-footer">
                   <span className="sf-kpi-trend positive">+12.5%</span>
                   <span className="sf-kpi-subtext">vs last month</span>
                </div>
-             </div>
+             </motion.div>
              
-             <div className="sf-kpi-card">
+             <motion.div className="sf-kpi-card" variants={cardVariants}>
                <div className="sf-kpi-header">
                  <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                  Sales Orders
                </div>
-               <div className="sf-kpi-value">{salesOrders.length}</div>
+               <div className="sf-kpi-value"><CountUp end={salesOrders.length} duration={2} /></div>
                <div className="sf-kpi-footer">
                   <span className="sf-kpi-trend warning">{pendingSales} Pending</span>
                </div>
-             </div>
+             </motion.div>
 
-             <div className="sf-kpi-card">
+             <motion.div className="sf-kpi-card" variants={cardVariants}>
                <div className="sf-kpi-header">
                  <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                  Purchase Orders
                </div>
-               <div className="sf-kpi-value">{purchaseOrders.length}</div>
+               <div className="sf-kpi-value"><CountUp end={purchaseOrders.length} duration={2} /></div>
                <div className="sf-kpi-footer">
                   <span className="sf-kpi-trend warning">{pendingPurchases} Pending</span>
                </div>
-             </div>
+             </motion.div>
 
-             <div className="sf-kpi-card">
+             <motion.div className="sf-kpi-card" variants={cardVariants}>
                <div className="sf-kpi-header">
                  <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
                  Manufacturing
                </div>
-               <div className="sf-kpi-value">{manufacturingOrders.length}</div>
+               <div className="sf-kpi-value"><CountUp end={manufacturingOrders.length} duration={2} /></div>
                <div className="sf-kpi-footer">
                   <span className="sf-kpi-trend info">{inProgressMfg} In Progress</span>
                </div>
-             </div>
+             </motion.div>
 
-             <div className="sf-kpi-card">
+             <motion.div className="sf-kpi-card" variants={cardVariants}>
                <div className="sf-kpi-header">
                  <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                  Low Stock
                </div>
-               <div className="sf-kpi-value">{lowStockItems.length}</div>
+               <div className="sf-kpi-value"><CountUp end={lowStockItems.length} duration={2} /></div>
                <div className="sf-kpi-footer">
                   <span className="sf-kpi-trend danger">Needs Attention</span>
                </div>
-             </div>
-          </div>
+             </motion.div>
+          </motion.div>
 
           {/* ROW 2: MAIN ANALYTICS */}
           <div className="sf-analytics-row">
@@ -120,19 +138,40 @@ function Dashboard({ currentUser, onNavigate }) {
                 <div style={{ position: 'relative', height: '220px', marginTop: '10px' }}>
                    {/* Horizontal grid lines */}
                    <div style={{ position: 'absolute', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '30px' }}>
-                      {[4,3,2,1,0].map(i => <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', width: '100%' }}></div>)}
+                      {[4,3,2,1,0].map(i => <div key={i} style={{ borderBottom: '1px dashed var(--sf-panel-border)', width: '100%' }}></div>)}
                    </div>
                    
-                   <svg className="sf-chart-svg" viewBox="0 0 500 200" preserveAspectRatio="none">
-                      <path d="M 0 150 Q 50 160 100 120 T 200 130 T 250 80 T 300 100 T 400 60 T 500 90 L 500 200 L 0 200 Z" fill="url(#goldGrad)" />
-                      <path className="sf-line" d="M 0 150 Q 50 160 100 120 T 200 130 T 250 80 T 300 100 T 400 60 T 500 90" />
-                      <circle cx="400" cy="60" r="5" fill="var(--sf-gold)" />
+                   {/* Bar Chart (Skillset Style) */}
+                   <svg className="sf-chart-svg" viewBox="0 0 500 200" preserveAspectRatio="none" style={{ position: 'relative', zIndex: 1 }}>
+                      {/* Background Bars (Light Grey) */}
+                      <rect className="sf-bar-bg" x="30" y="40" width="40" height="130" />
+                      <rect className="sf-bar-bg" x="110" y="20" width="40" height="150" />
+                      <rect className="sf-bar-bg" x="190" y="60" width="40" height="110" />
+                      <rect className="sf-bar-bg" x="270" y="30" width="40" height="140" />
+                      <rect className="sf-bar-bg" x="350" y="80" width="40" height="90" />
+                      <rect className="sf-bar-bg" x="430" y="10" width="40" height="160" />
+
+                      {/* Foreground Bars (Animated) */}
+                      <motion.rect className="sf-bar" x="30" y="80" width="40" height="90" variants={chartVariants} initial="hidden" animate="show" />
+                      <motion.rect className="sf-bar" x="110" y="90" width="40" height="80" variants={chartVariants} initial="hidden" animate="show" />
+                      <motion.rect className="sf-bar" x="190" y="40" width="40" height="130" fill="#9ca3af" variants={chartVariants} initial="hidden" animate="show" />
+                      <motion.rect className="sf-bar" x="270" y="110" width="40" height="60" variants={chartVariants} initial="hidden" animate="show" />
+                      <motion.rect className="sf-bar" x="350" y="20" width="40" height="150" variants={chartVariants} initial="hidden" animate="show" />
+                      <motion.rect className="sf-bar" x="430" y="120" width="40" height="50" variants={chartVariants} initial="hidden" animate="show" />
+                      
+                      {/* X Axis Labels */}
+                      <text x="50" y="195" fontSize="11" fill="var(--sf-text-muted)" textAnchor="middle">Jan</text>
+                      <text x="130" y="195" fontSize="11" fill="var(--sf-text-muted)" textAnchor="middle">Feb</text>
+                      <text x="210" y="195" fontSize="11" fill="var(--sf-text-dark)" fontWeight="bold" textAnchor="middle">Mar</text>
+                      <text x="290" y="195" fontSize="11" fill="var(--sf-text-muted)" textAnchor="middle">Apr</text>
+                      <text x="370" y="195" fontSize="11" fill="var(--sf-text-muted)" textAnchor="middle">May</text>
+                      <text x="450" y="195" fontSize="11" fill="var(--sf-text-muted)" textAnchor="middle">Jun</text>
                    </svg>
                    
                    {/* Tooltip */}
-                   <div style={{ position: 'absolute', top: '20px', left: '350px', background: 'var(--sf-panel-bg)', border: '1px solid var(--sf-panel-border)', padding: '8px 12px', borderRadius: '6px', fontSize: '11px', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
-                      <div style={{ color: 'var(--sf-text-muted)', marginBottom: '4px' }}>Aug 15</div>
-                      <div style={{ color: '#fff', fontWeight: '600' }}>Sales: ₹2.4L</div>
+                   <div style={{ position: 'absolute', top: '10px', left: '190px', background: 'var(--sf-panel-bg)', border: '1px solid var(--sf-panel-border)', padding: '8px 12px', borderRadius: '8px', fontSize: '11px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', zIndex: 10 }}>
+                      <div style={{ color: 'var(--sf-text-muted)', marginBottom: '4px' }}>March Sales</div>
+                      <div style={{ color: 'var(--sf-text)', fontWeight: '700', fontSize: '14px' }}>₹2.4L</div>
                    </div>
                 </div>
              </div>
