@@ -20,50 +20,68 @@ import UserManagementPermissions from './pages/UserManagementPermissions';
 import './App.css';
 import './pages/Dashboard.css';
 
+const ROLE_PERMISSIONS = {
+  'System Administrator': [
+    "dashboard.view", "users.view", "users.create", "users.edit", "users.assign_role",
+    "sales.view", "sales.create", "sales.edit", "sales.delete",
+    "purchase.view", "purchase.create", "purchase.edit", "purchase.delete",
+    "manufacturing.view", "manufacturing.create", "manufacturing.edit", "manufacturing.delete",
+    "inventory.view", "inventory.edit", "products.view", "products.create", "products.edit",
+    "bom.view", "bom.create", "bom.edit", "audit.view", "settings.view"
+  ],
+  'ADMIN': [
+    "dashboard.view", "users.view", "users.create", "users.edit", "users.assign_role",
+    "sales.view", "sales.create", "sales.edit", "sales.delete",
+    "purchase.view", "purchase.create", "purchase.edit", "purchase.delete",
+    "manufacturing.view", "manufacturing.create", "manufacturing.edit", "manufacturing.delete",
+    "inventory.view", "inventory.edit", "products.view", "products.create", "products.edit",
+    "bom.view", "bom.create", "bom.edit", "audit.view", "settings.view"
+  ],
+  'SALES_USER': [
+    "dashboard.view", "sales.view", "sales.create", "sales.edit", "products.view", "inventory.view"
+  ],
+  'PURCHASE_USER': [
+    "dashboard.view", "purchase.view", "purchase.create", "purchase.edit", "products.view", "inventory.view", "procurement.view"
+  ],
+  'MANUFACTURING_USER': [
+    "dashboard.view", "manufacturing.view", "manufacturing.create", "manufacturing.edit", "bom.view", "inventory.view"
+  ],
+  'INVENTORY_MANAGER': [
+    "dashboard.view", "inventory.view", "inventory.edit", "products.view", "products.edit", "stock_ledger.view", "procurement.view"
+  ],
+  'BUSINESS_OWNER': [
+    "dashboard.view", "products.view", "products.create", "products.edit", "sales.view", "purchase.view", "manufacturing.view", "inventory.view", "procurement.view", "analytics.view"
+  ],
+  'PENDING': []
+};
+
+const VIEW_PERMISSIONS = {
+  'dashboard': 'dashboard.view',
+  'sales-orders': 'sales.view',
+  'purchase-orders': 'purchase.view',
+  'manufacturing-orders': 'manufacturing.view',
+  'bom': 'bom.view',
+  'products': 'products.view',
+  'users': 'users.view',
+  'audit-logs': 'audit.view',
+};
+
 function App() {
-  // Navigation / Views: 'login' | 'register' | 'dashboard' | 'profile' | 'sales-orders' | 'purchase-orders' | 'manufacturing-orders' | 'bom' | 'products' | 'audit-logs' | 'settings' | 'notifications'
   const [currentView, setCurrentView] = useState('login');
-
-  // Collapse state for master menu sidebar
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  // Global search input state
   const [searchVal, setSearchVal] = useState('');
-
-  // Simulated local databases
-  const [users, setUsers] = useState(() => {
-    const storedUsers = localStorage.getItem('assetflow_users');
-    return storedUsers ? JSON.parse(storedUsers) : [];
-  });
   const [currentUser, setCurrentUser] = useState(null);
+  const [profilePhoto, setProfilePhoto] = useState('');
+  const [auditLogModuleFilter, setAuditLogModuleFilter] = useState('All Modules');
 
-  // Cleanup teacher@gmail.com from local storage if exists
-  useEffect(() => {
-    const storedUsers = localStorage.getItem('assetflow_users');
-    if (storedUsers) {
-      try {
-        const parsed = JSON.parse(storedUsers);
-        const filtered = parsed.filter(
-          (u) => u.loginId !== 'teacher@gmail.com' && u.email !== 'teacher@gmail.com'
-        );
-        if (parsed.length !== filtered.length) {
-          localStorage.setItem('assetflow_users', JSON.stringify(filtered));
-          setUsers(filtered);
-        }
-      } catch (e) {
-        console.error('Failed to clean up local storage users:', e);
-      }
-    }
-  }, []);
-
-  // Auto-redirect logged-in users
+  // Auto-redirect logged-in users based on role
   useEffect(() => {
     if (currentUser) {
       const isAdm = currentUser.role === 'System Administrator' ||
         currentUser.role === 'ADMIN' ||
         String(currentUser.role).toLowerCase().includes('admin');
       if (isAdm) {
-        setCurrentView('admin-dashboard');
+        setCurrentView('users');
       } else {
         setCurrentView('dashboard');
       }
@@ -78,24 +96,22 @@ function App() {
   };
 
   const handleRegisterSuccess = (newUser) => {
-    // Add user to database
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    localStorage.setItem('assetflow_users', JSON.stringify(updatedUsers));
-
-    // Switch to login page or auto-login if admin
-    if (newUser.role === 'System Administrator') {
-      setCurrentUser(newUser);
-    } else {
-      setCurrentView('login');
-    }
+    // Navigate back to login page
+    setCurrentView('login');
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('assetflow_token');
     setCurrentUser(null);
   };
 
-  const [profilePhoto, setProfilePhoto] = useState('');
+  const handleProfileUpdate = (updatedFields) => {
+    setCurrentUser(prev => prev ? { ...prev, ...updatedFields } : null);
+    if (updatedFields.photo !== undefined) {
+      setProfilePhoto(updatedFields.photo);
+      localStorage.setItem(`assetflow_profile_${currentUser.loginId || currentUser.login_id}`, JSON.stringify({ photo: updatedFields.photo }));
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -114,10 +130,17 @@ function App() {
     }
   }, [currentUser]);
 
-  const [auditLogModuleFilter, setAuditLogModuleFilter] = useState('All Modules');
-
   const handleNavigation = (view, filter = 'All Modules') => {
-    setCurrentView(view);
+    const userRole = currentUser?.role || 'PENDING';
+    const allowedPerms = ROLE_PERMISSIONS[userRole] || [];
+    const requiredPermission = VIEW_PERMISSIONS[view];
+    
+    if (requiredPermission && !allowedPerms.includes(requiredPermission) && userRole !== 'System Administrator' && userRole !== 'ADMIN') {
+      setCurrentView('unauthorized');
+    } else {
+      setCurrentView(view);
+    }
+
     if (view === 'audit-logs') {
       setAuditLogModuleFilter(filter);
     }
@@ -166,6 +189,7 @@ function App() {
               onSearchChange={setSearchVal}
               searchVal={searchVal}
               profilePhoto={profilePhoto}
+              onProfileUpdate={handleProfileUpdate}
             />
             <main className="sf-dashboard-content">
               <AnimatePresence mode="wait">
@@ -184,23 +208,41 @@ function App() {
                       searchVal={searchVal}
                     />
                   )}
-                  {currentView === 'sales-orders' && <SalesOrders onNavigate={handleNavigation} />}
-                  {currentView === 'purchase-orders' && <PurchaseOrders onNavigate={handleNavigation} />}
-                  {currentView === 'manufacturing-orders' && <ManufacturingOrders onNavigate={handleNavigation} />}
-                  {currentView === 'bom' && <BOM onNavigate={handleNavigation} />}
-                  {currentView === 'products' && <Products />}
-                  {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} />}
+                  {currentView === 'sales-orders' && <SalesOrders onNavigate={handleNavigation} currentUser={currentUser} />}
+                  {currentView === 'purchase-orders' && <PurchaseOrders onNavigate={handleNavigation} currentUser={currentUser} />}
+                  {currentView === 'manufacturing-orders' && <ManufacturingOrders onNavigate={handleNavigation} currentUser={currentUser} />}
+                  {currentView === 'bom' && <BOM onNavigate={handleNavigation} currentUser={currentUser} />}
+                  {currentView === 'products' && <Products currentUser={currentUser} />}
+                  {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} currentUser={currentUser} />}
+                  {currentView === 'users' && <AdminDashboard currentUser={currentUser} />}
                   {currentView === 'profile' && (
                     <Profile
                       currentUser={currentUser}
-                      onProfileUpdate={(newPhoto) => setProfilePhoto(newPhoto)}
+                      onProfileUpdate={handleProfileUpdate}
                     />
                   )}
                   {currentView === 'settings' && <Settings />}
                   {currentView === 'notifications' && <Notifications />}
-                  {currentView === 'admin-dashboard' && <AdminDashboard currentUser={currentUser} />}
-                  {currentView === 'admin-creation' && <AdminDashboard currentUser={currentUser} openAdminCreation={true} />}
                   {currentView === 'user-permissions' && <UserManagementPermissions />}
+                  
+                  {currentView === 'unauthorized' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '40px', textAlign: 'center' }}>
+                      <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(217,91,91,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+                        <svg width="40" height="40" fill="none" stroke="#D95B5B" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                      <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '10px' }}>403 Unauthorized</h2>
+                      <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', marginBottom: '24px' }}>You don't have permission to access this module. Please contact your system administrator if you believe this is an error.</p>
+                      <button 
+                        className="sf-btn" 
+                        onClick={() => setCurrentView('dashboard')}
+                        style={{ background: 'var(--sf-gold)', color: '#000', padding: '10px 24px', borderRadius: '8px', border: 'none', fontWeight: '700', cursor: 'pointer' }}
+                      >
+                        Back to Dashboard
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
             </main>
@@ -212,14 +254,12 @@ function App() {
           <main className="content-container" style={{ padding: 0 }}>
             {currentView === 'login' && (
               <Login
-                users={users}
                 onLoginSuccess={handleLoginSuccess}
                 onNavigateToRegister={() => setCurrentView('register')}
               />
             )}
             {currentView === 'register' && (
               <Register
-                users={users}
                 onRegisterSuccess={handleRegisterSuccess}
                 onNavigateToLogin={() => setCurrentView('login')}
               />

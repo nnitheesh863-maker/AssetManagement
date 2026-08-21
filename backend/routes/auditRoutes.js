@@ -1,38 +1,45 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { AuditLog } = require('../models');
+const { authenticateToken, requirePermission } = require('../middleware/auth');
 
 // --- Audit Logs Routes ---
-router.get("/audit-logs", async (req, res) => {
+router.get("/audit-logs", authenticateToken, requirePermission("audit.view"), async (req, res) => {
   try {
-    const { rows } = await pool.query("SELECT * FROM audit_logs ORDER BY id DESC");
-    res.json(rows);
+    const logs = await AuditLog.find().sort({ _id: -1 });
+    res.json(logs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post("/audit-logs", async (req, res) => {
+router.post("/audit-logs", authenticateToken, async (req, res) => {
   try {
     const { datetime, user, module, type, record_id, action, field, old_val, new_val } = req.body;
-    await pool.query(
-      `INSERT INTO audit_logs (datetime, "user", module, type, record_id, action, field, old_val, new_val) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [datetime, user, module, type, record_id, action, field || "", old_val || "", new_val || ""]
-    );
-    res.status(201).json({ message: "Audit log created successfully" });
+    await AuditLog.create({
+      datetime, 
+      user, 
+      module, 
+      type, 
+      record_id, 
+      action, 
+      field: field || "", 
+      old_val: old_val || "", 
+      new_val: new_val || ""
+    });
+    res.status(201).json({ success: true, message: "Audit log created successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-router.delete("/audit-logs/:id", async (req, res) => {
+router.delete("/audit-logs/:id", authenticateToken, requirePermission("users.assign_role"), async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query("DELETE FROM audit_logs WHERE id = $1", [id]);
-    res.json({ message: "Audit log deleted successfully" });
+    await AuditLog.findByIdAndDelete(id);
+    res.json({ success: true, message: "Audit log deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

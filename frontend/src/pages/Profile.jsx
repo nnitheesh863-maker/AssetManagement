@@ -25,7 +25,10 @@ function Profile({ currentUser, onProfileUpdate }) {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/users`);
+        const token = localStorage.getItem('assetflow_token');
+        const res = await fetch(`${API_BASE_URL}/users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await res.json();
         const me = data.find(u => u.login_id === currentUser.loginId);
         if (me) {
@@ -98,9 +101,13 @@ function Profile({ currentUser, onProfileUpdate }) {
     setErrorMessage('');
 
     try {
+      const token = localStorage.getItem('assetflow_token');
       const res = await fetch(`${API_BASE_URL}/users/${currentUser.loginId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           name,
           address,
@@ -115,7 +122,7 @@ function Profile({ currentUser, onProfileUpdate }) {
       if (res.ok) {
         setSuccessMessage('Profile details updated successfully!');
         if (onProfileUpdate) {
-          onProfileUpdate(photo);
+          onProfileUpdate({ photo, name, address, mobile });
         }
         setTimeout(() => setSuccessMessage(''), 3000);
       } else {

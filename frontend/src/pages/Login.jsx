@@ -94,13 +94,15 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
         setSuccessMessage(isSystemAdmin ? 'Welcome, Administrator!' : 'Logged in successfully!');
         triggerExplosion(isSystemAdmin);
 
+        localStorage.setItem('assetflow_token', data.token);
         setTimeout(() => {
           onLoginSuccess({
             loginId: user.login_id,
             email: user.email,
             role: user.role || 'User',
             name: user.name,
-            photo: user.photo
+            photo: user.photo,
+            token: data.token
           });
         }, 1800);
       } else {
@@ -131,15 +133,17 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
           setSuccessMessage('Welcome, Administrator!');
           triggerExplosion(true);
 
-          setTimeout(() => {
-            onLoginSuccess({
-              loginId: user.login_id,
-              email: user.email,
-              role: 'System Administrator',
-              name: user.name,
-              photo: user.photo
-            });
-          }, 1800);
+        localStorage.setItem('assetflow_token', data.token);
+        setTimeout(() => {
+          onLoginSuccess({
+            loginId: user.login_id,
+            email: user.email,
+            role: 'System Administrator',
+            name: user.name,
+            photo: user.photo,
+            token: data.token
+          });
+        }, 1800);
         } else {
           setErrorMessage('Access Denied: You are not an Administrator.');
         }

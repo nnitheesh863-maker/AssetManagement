@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, searchVal }) {
+function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, searchVal, onProfileUpdate }) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80");
@@ -30,10 +30,15 @@ function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, search
   const handleSaveProfile = async () => {
     if (!currentUser) return;
     setIsSaving(true);
+    const userId = currentUser.loginId || currentUser.login_id;
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${currentUser.login_id}`, {
+      const token = localStorage.getItem('assetflow_token');
+      const res = await fetch(`http://localhost:5000/api/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           name: currentUser.name,
           email: currentUser.email,
@@ -46,6 +51,9 @@ function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, search
       });
       if (res.ok) {
         toast.success('Profile saved permanently!');
+        if (onProfileUpdate) {
+          onProfileUpdate({ photo: profileImage });
+        }
         setIsProfileModalOpen(false);
       } else {
         toast.error('Failed to save profile');

@@ -1,17 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { Product } = require('../models');
+const { authenticateToken, requirePermission } = require('../middleware/auth');
 
 // --- Products Routes ---
-router.get("/products", async (req, res) => {
+router.get("/products", authenticateToken, requirePermission("products.view"), async (req, res) => {
   try {
-    const { rows } = await pool.query("SELECT * FROM products ORDER BY id DESC");
-    const formatted = rows.map(r => ({
+    const products = await Product.find().sort({ id: -1 });
+    const formatted = products.map(r => ({
       id: r.id,
       name: r.name,
       category: r.category,
       salesPrice: parseFloat(r.sales_price || 0),
-      costPrice: parseFloat(r.cost_price || 0)
+      costPrice: parseFloat(r.cost_price || 0),
+      onHandQty: r.on_hand_qty || 0,
+      reservedQty: r.reserved_qty || 0,
+      freeToUseQty: (r.on_hand_qty || 0) - (r.reserved_qty || 0),
+      minimumStock: r.minimum_stock || 0,
+      procurementStrategy: r.procurement_strategy || 'MTS',
+      procurementType: r.procurement_type || 'Purchase',
+      vendor: r.vendor || '',
+      bomRef: r.bom_ref || ''
     }));
     res.json(formatted);
   } catch (err) {
@@ -19,43 +28,73 @@ router.get("/products", async (req, res) => {
   }
 });
 
-router.post("/products", async (req, res) => {
+router.post("/products", authenticateToken, requirePermission("products.create"), async (req, res) => {
   try {
-    const { id, name, category, salesPrice, costPrice } = req.body;
-    await pool.query(
-      `INSERT INTO products (id, name, category, sales_price, cost_price) 
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, name, category, salesPrice || 0, costPrice || 0]
-    );
-    res.status(201).json({ message: "Product created successfully" });
+    const { 
+      id, name, category, salesPrice, costPrice, 
+      onHandQty, reservedQty, minimumStock, 
+      procurementStrategy, procurementType, vendor, bomRef 
+    } = req.body;
+    
+    await Product.create({
+      id, 
+      name, 
+      category, 
+      sales_price: salesPrice || 0, 
+      cost_price: costPrice || 0,
+      on_hand_qty: onHandQty || 0,
+      reserved_qty: reservedQty || 0,
+      minimum_stock: minimumStock || 0,
+      procurement_strategy: procurementStrategy || 'MTS',
+      procurement_type: procurementType || 'Purchase',
+      vendor: vendor || '',
+      bom_ref: bomRef || ''
+    });
+    res.status(201).json({ success: true, message: "Product created successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-router.put("/products/:id", async (req, res) => {
+router.put("/products/:id", authenticateToken, requirePermission("products.edit"), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, salesPrice, costPrice } = req.body;
-    await pool.query(
-      `UPDATE products 
-       SET name = $1, category = $2, sales_price = $3, cost_price = $4 
-       WHERE id = $5`,
-      [name, category, salesPrice || 0, costPrice || 0, id]
-    );
-    res.json({ message: "Product updated successfully" });
+    const { 
+      name, category, salesPrice, costPrice, 
+      onHandQty, reservedQty, minimumStock, 
+      procurementStrategy, procurementType, vendor, bomRef 
+    } = req.body;
+    
+    const updateData = {
+      name, 
+      category, 
+      sales_price: salesPrice, 
+      cost_price: costPrice,
+      on_hand_qty: onHandQty,
+      reserved_qty: reservedQty,
+      minimum_stock: minimumStock,
+      procurement_strategy: procurementStrategy,
+      procurement_type: procurementType,
+      vendor,
+      bom_ref: bomRef
+    };
+    
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+    
+    await Product.findOneAndUpdate({ id }, updateData);
+    res.json({ success: true, message: "Product updated successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-router.delete("/products/:id", async (req, res) => {
+router.delete("/products/:id", authenticateToken, requirePermission("products.edit"), async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query("DELETE FROM products WHERE id = $1", [id]);
-    res.json({ message: "Product deleted successfully" });
+    await Product.findOneAndDelete({ id });
+    res.json({ success: true, message: "Product deleted successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

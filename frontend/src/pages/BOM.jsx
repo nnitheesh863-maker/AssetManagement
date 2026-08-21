@@ -32,7 +32,12 @@ const WORK_CENTER_LIST = [
   'Upholstery Dep'
 ];
 
-function BOM({ onNavigate }) {
+function BOM({ onNavigate, currentUser }) {
+  const role = currentUser?.role || '';
+  const position = (currentUser?.position || '').toLowerCase();
+  const isAdmin = role === 'System Administrator' || role === 'ADMIN' || position.includes('admin');
+  const canEdit = isAdmin || role === 'MANUFACTURING_USER' || position.includes('manufacturing') || position.includes('warehouse');
+
   const [boms, setBoms] = useState(() => {
     const saved = localStorage.getItem('assetflow_boms');
     if (saved) return JSON.parse(saved);
@@ -88,9 +93,13 @@ function BOM({ onNavigate }) {
   const API_BASE_URL = 'http://localhost:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
+    const token = localStorage.getItem('assetflow_token');
     fetch(`${API_BASE_URL}/${endpoint}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify(bodyObj)
     }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
   };
@@ -129,7 +138,10 @@ function BOM({ onNavigate }) {
     const fetchProductsAndBoms = async () => {
       // Load products
       try {
-        const prodRes = await fetch(`${API_BASE_URL}/products`);
+        const token = localStorage.getItem('assetflow_token');
+        const prodRes = await fetch(`${API_BASE_URL}/products`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (prodRes.ok) {
           const prodData = await prodRes.json();
           if (prodData.length > 0) {
@@ -153,7 +165,10 @@ function BOM({ onNavigate }) {
 
       // Load BOMs
       try {
-        const bomRes = await fetch(`${API_BASE_URL}/boms`);
+        const token = localStorage.getItem('assetflow_token');
+        const bomRes = await fetch(`${API_BASE_URL}/boms`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (bomRes.ok) {
           const bomData = await bomRes.json();
           if (bomData.length > 0) {
@@ -496,16 +511,18 @@ function BOM({ onNavigate }) {
                 onClick={() => setActiveView('list')}
                 style={{ marginTop: 0 }}
               >
-                Back
+                Cancel
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={handleSaveBOM}
-                style={{ marginTop: 0 }}
-              >
-                Save
-              </button>
+              {canEdit && (
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  onClick={handleSaveBOM}
+                  style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
+                >
+                  Save BOM
+                </button>
+              )}
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -535,6 +552,7 @@ function BOM({ onNavigate }) {
                   className="filter-control-select"
                   value={finishedProduct}
                   onChange={(e) => setFinishedProduct(e.target.value)}
+                  disabled={!canEdit}
                 >
                   {productList.map(prod => (
                     <option key={prod} value={prod}>{prod}</option>
@@ -548,12 +566,12 @@ function BOM({ onNavigate }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="number"
-                    step="0.01"
                     className="filter-control-input"
                     value={quantity}
-                    onChange={(e) => setQuantity(Math.max(0.01, parseFloat(e.target.value) || 1.0))}
+                    onChange={(e) => setQuantity(Math.max(1, parseFloat(e.target.value) || 1))}
+                    min={1}
                     style={{ flex: 1 }}
-                    min={0.01}
+                    disabled={!canEdit}
                     required
                   />
                   <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-secondary)' }}>Units</span>
@@ -565,11 +583,11 @@ function BOM({ onNavigate }) {
                 <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Reference (Max 8 Char) *</label>
                 <input
                   type="text"
-                  maxLength={8}
                   className="filter-control-input"
                   value={reference}
-                  onChange={(e) => setReference(e.target.value.substring(0, 8))}
-                  placeholder="e.g. BOM-A1"
+                  onChange={(e) => setReference(e.target.value)}
+                  placeholder="e.g. DF-01"
+                  disabled={!canEdit}
                   required
                 />
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'right' }}>

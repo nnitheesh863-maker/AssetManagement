@@ -39,65 +39,55 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
       return;
     }
 
-    // 2. Login ID: uniqueness
-    const isLoginIdTaken = users.some(
-      (u) => u.loginId.toLowerCase() === loginId.toLowerCase()
-    ) || loginId.toLowerCase() === 'admin123';
-
-    if (isLoginIdTaken) {
-      setErrorMessage('Login ID already exists.');
-      return;
-    }
-
-    // 3. Email format
+    // 2. Email format
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email)) {
       setErrorMessage('Please enter a valid Email ID.');
       return;
     }
 
-    // 4. Email: uniqueness
-    const isEmailTaken = users.some(
-      (u) => u.email.toLowerCase() === email.toLowerCase()
-    );
-    if (isEmailTaken) {
-      setErrorMessage('Email ID is already registered.');
-      return;
-    }
-
-    // 5. Password strength and uniqueness
+    // 3. Password strength and match
     const strength = checkPasswordStrength(password);
     if (!strength.isValid) {
       setErrorMessage('Password must contain a lowercase letter, an uppercase letter, a special character, and be more than 8 characters.');
       return;
     }
 
-    const isPasswordTaken = users.some(
-      (u) => u.password === password
-    );
-    if (isPasswordTaken) {
-      setErrorMessage('Password must be unique.');
-      return;
-    }
-
-    // 6. Password match
+    // 4. Password match
     if (password !== rePassword) {
       setErrorMessage('Passwords do not match.');
       return;
     }
 
-    // Save success callback
-    const adminCreationKey = localStorage.getItem('assetflow_admin_creation_password');
-    let role = 'User';
-    if (adminCreationKey && password === adminCreationKey) {
-      role = 'System Administrator';
-    }
-
-    const newUser = { loginId, email, password, role };
-    setSuccessMessage('Registration successful! Redirecting...');
-    setTimeout(() => {
-      onRegisterSuccess(newUser);
-    }, 1200);
+    // Submit registration to backend Mongoose database
+    const API_BASE_URL = 'http://localhost:5000/api';
+    fetch(`${API_BASE_URL}/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        loginId, 
+        email, 
+        password,
+        name: loginId,
+        mobile: '',
+        address: ''
+      })
+    })
+    .then(async (res) => {
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSuccessMessage('Registration successful! Awaiting Admin activation.');
+        setTimeout(() => {
+          onRegisterSuccess({ loginId, email, role: 'PENDING' });
+        }, 1800);
+      } else {
+        setErrorMessage(data.message || 'Registration failed.');
+      }
+    })
+    .catch((err) => {
+      console.error('Registration error:', err);
+      setErrorMessage('Server unreachable. Please try again later.');
+    });
   };
 
   const passwordStrength = checkPasswordStrength(password);

@@ -11,7 +11,12 @@ const CATEGORY_LIST = [
   'Pre-Production'
 ];
 
-function Products() {
+function Products({ currentUser }) {
+  const role = currentUser?.role || '';
+  const position = (currentUser?.position || '').toLowerCase();
+  const isAdmin = role === 'System Administrator' || role === 'ADMIN' || position.includes('admin');
+  const canEdit = isAdmin || role === 'INVENTORY_MANAGER' || role === 'BUSINESS_OWNER' || position.includes('warehouse') || position.includes('manager');
+
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('assetflow_products');
     if (saved) return JSON.parse(saved);
@@ -41,9 +46,13 @@ function Products() {
   const API_BASE_URL = 'http://localhost:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
+    const token = localStorage.getItem('assetflow_token');
     fetch(`${API_BASE_URL}/${endpoint}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify(bodyObj)
     }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
   };
@@ -81,7 +90,10 @@ function Products() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/products`);
+        const token = localStorage.getItem('assetflow_token');
+        const res = await fetch(`${API_BASE_URL}/products`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.length > 0) {
@@ -251,13 +263,18 @@ function Products() {
           >
             Kanban Board
           </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleNewProduct}
-            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
-          >
-            ＋ New Product
-          </button>
+          {currentUser?.role === 'Admin' && (
+            <button 
+              className="btn btn-primary" 
+              onClick={handleNewProduct}
+              style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              New Product
+            </button>
+          )}
         </div>
       </div>
 
@@ -406,6 +423,7 @@ function Products() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Deluxe Oak Dining Table"
+                  disabled={!canEdit}
                   required
                 />
               </div>
@@ -417,6 +435,7 @@ function Products() {
                   className="filter-control-select"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
+                  disabled={!canEdit}
                 >
                   {CATEGORY_LIST.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -433,6 +452,7 @@ function Products() {
                   value={salesPrice}
                   onChange={(e) => setSalesPrice(Math.max(0, parseFloat(e.target.value) || 0))}
                   min={0}
+                  disabled={!canEdit}
                   required
                 />
               </div>
@@ -446,6 +466,7 @@ function Products() {
                   value={costPrice}
                   onChange={(e) => setCostPrice(Math.max(0, parseFloat(e.target.value) || 0))}
                   min={0}
+                  disabled={!canEdit}
                   required
                 />
               </div>
@@ -462,13 +483,15 @@ function Products() {
               >
                 Cancel
               </button>
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
-              >
-                Save Product
-              </button>
+              {canEdit && (
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
+                >
+                  Save Product
+                </button>
+              )}
             </div>
 
           </form>

@@ -22,7 +22,12 @@ const WORK_CENTER_LIST = [
   'Upholstery Dep'
 ];
 
-function ManufacturingOrders({ onNavigate }) {
+function ManufacturingOrders({ onNavigate, currentUser }) {
+  const role = currentUser?.role || '';
+  const position = (currentUser?.position || '').toLowerCase();
+  const isAdmin = role === 'System Administrator' || role === 'ADMIN' || position.includes('admin');
+  const canEdit = isAdmin || role === 'MANUFACTURING_USER' || role === 'BUSINESS_OWNER' || position.includes('manufacturing') || position.includes('warehouse');
+
   const [mfgOrders, setMfgOrders] = useState(() => {
     const savedOrders = localStorage.getItem('assetflow_manufacturing_orders');
     if (savedOrders) return JSON.parse(savedOrders);
@@ -126,9 +131,13 @@ function ManufacturingOrders({ onNavigate }) {
   const API_BASE_URL = 'http://localhost:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
+    const token = localStorage.getItem('assetflow_token');
     fetch(`${API_BASE_URL}/${endpoint}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify(bodyObj)
     }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
   };
@@ -167,7 +176,10 @@ function ManufacturingOrders({ onNavigate }) {
     const fetchBomsAndOrders = async () => {
       // Load BOMs
       try {
-        const bomRes = await fetch(`${API_BASE_URL}/boms`);
+        const token = localStorage.getItem('assetflow_token');
+        const bomRes = await fetch(`${API_BASE_URL}/boms`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (bomRes.ok) {
           const bomData = await bomRes.json();
           if (bomData.length > 0) {
@@ -186,7 +198,10 @@ function ManufacturingOrders({ onNavigate }) {
 
       // Load Mfg Orders
       try {
-        const orderRes = await fetch(`${API_BASE_URL}/manufacturing-orders`);
+        const token = localStorage.getItem('assetflow_token');
+        const orderRes = await fetch(`${API_BASE_URL}/manufacturing-orders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (orderRes.ok) {
           const orderData = await orderRes.json();
           if (orderData.length > 0) {
@@ -689,16 +704,18 @@ function ManufacturingOrders({ onNavigate }) {
           >
             Kanban Board
           </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleNewOrder}
-            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            New Manufacturing Order
-          </button>
+          {canEdit && (
+            <button 
+              className="btn btn-primary" 
+              onClick={handleNewOrder}
+              style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              New Manufacturing Order
+            </button>
+          )}
         </div>
       </div>
 
@@ -981,12 +998,12 @@ function ManufacturingOrders({ onNavigate }) {
               
               {/* BOM Selector */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Select BOM Template</label>
+                <label style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Bill of Materials</label>
                 <select
                   className="filter-control-select"
                   value={selectedBomId}
-                  onChange={(e) => handleBomChange(e.target.value)}
-                  disabled={orderStatus !== 'Draft'}
+                  onChange={(e) => handleBomSelect(e.target.value)}
+                  disabled={!canEdit || orderStatus !== 'Draft'}
                 >
                   <option value="">-- No BOM Template --</option>
                   {boms.map(b => (
@@ -1003,7 +1020,7 @@ function ManufacturingOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={finishedProduct}
                   onChange={(e) => setFinishedProduct(e.target.value)}
-                  disabled={orderStatus !== 'Draft'}
+                  disabled={!canEdit || orderStatus !== 'Draft'}
                   placeholder="Finished Product Name"
                   required
                 />
@@ -1018,7 +1035,7 @@ function ManufacturingOrders({ onNavigate }) {
                     className="filter-control-input"
                     value={qty}
                     onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                    disabled={orderStatus !== 'Draft'}
+                    disabled={!canEdit || orderStatus !== 'Draft'}
                     min={1}
                     style={{ flex: 1 }}
                     required
@@ -1035,7 +1052,7 @@ function ManufacturingOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Done' || orderStatus === 'Cancelled'}
                   required
                 />
               </div>
@@ -1047,7 +1064,7 @@ function ManufacturingOrders({ onNavigate }) {
                   className="filter-control-select"
                   value={assignee}
                   onChange={(e) => setAssignee(e.target.value)}
-                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Done' || orderStatus === 'Cancelled'}
                 >
                   {ASSIGNEE_LIST.map(name => (
                     <option key={name} value={name}>{name}</option>
@@ -1168,7 +1185,7 @@ function ManufacturingOrders({ onNavigate }) {
                               className="filter-control-input"
                               value={line.consumed || 0}
                               onChange={(e) => handleUpdateComponentLine(line.id, 'consumed', Math.max(0, parseInt(e.target.value) || 0))}
-                              disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                              disabled={!canEdit || orderStatus === 'Done' || orderStatus === 'Cancelled'}
                               min={0}
                             />
                           </td>
@@ -1359,15 +1376,17 @@ function ManufacturingOrders({ onNavigate }) {
               >
                 Close
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary"
-                onClick={handleSaveForm}
-                disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
-                style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
-              >
-                Save
-              </button>
+              {canEdit && (
+                <button 
+                  type="button" 
+                  className="btn btn-primary"
+                  onClick={handleSaveForm}
+                  disabled={orderStatus === 'Done' || orderStatus === 'Cancelled'}
+                  style={{ marginTop: 0, width: 'auto', padding: '0 24px' }}
+                >
+                  Save
+                </button>
+              )}
             </div>
 
           </form>

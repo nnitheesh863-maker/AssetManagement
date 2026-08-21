@@ -16,7 +16,7 @@ const PRODUCT_PRICES = {
 // Users database
 const SALESPERSON_LIST = ['Amit Sharma', 'Neha Verma', 'Ravi Patel', 'Meera Singh'];
 
-function SalesOrders({ onNavigate }) {
+function SalesOrders({ onNavigate, currentUser }) {
   const [salesOrders, setSalesOrders] = useState(() => {
     const saved = localStorage.getItem('assetflow_sales_orders');
     if (saved) return JSON.parse(saved);
@@ -37,6 +37,12 @@ function SalesOrders({ onNavigate }) {
   const [selectedOrder, setSelectedOrder] = useState(null); // null for new order
   const [searchTerm, setSearchTerm] = useState('');
 
+  // RBAC logic
+  const role = currentUser?.role || '';
+  const position = (currentUser?.position || '').toLowerCase();
+  const isAdmin = role === 'System Administrator' || role === 'ADMIN' || position.includes('admin');
+  const canEdit = isAdmin || role === 'SALES_USER' || role === 'BUSINESS_OWNER' || position.includes('sales');
+
   // Form Fields State
   const [customerName, setCustomerName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -50,9 +56,13 @@ function SalesOrders({ onNavigate }) {
   const API_BASE_URL = 'http://localhost:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
+    const token = localStorage.getItem('assetflow_token');
     fetch(`${API_BASE_URL}/${endpoint}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify(bodyObj)
     }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
   };
@@ -90,7 +100,10 @@ function SalesOrders({ onNavigate }) {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/sales-orders`);
+        const token = localStorage.getItem('assetflow_token');
+        const res = await fetch(`${API_BASE_URL}/sales-orders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.length > 0) {
@@ -417,13 +430,15 @@ function SalesOrders({ onNavigate }) {
           >
             Kanban Board
           </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleNewOrder}
-            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
-          >
-            ＋ New Sales Order
-          </button>
+          {canEdit && (
+            <button 
+              className="btn btn-primary" 
+              onClick={handleNewOrder}
+              style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
+            >
+              ＋ New Sales Order
+            </button>
+          )}
         </div>
       </div>
 
@@ -592,7 +607,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
-                  disabled={orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                   required
                 />
               </div>
@@ -605,7 +620,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={customerAddress}
                   onChange={(e) => setCustomerAddress(e.target.value)}
-                  disabled={orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                   required
                 />
               </div>
@@ -617,7 +632,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-select"
                   value={salesperson}
                   onChange={(e) => setSalesperson(e.target.value)}
-                  disabled={orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                 >
                   {SALESPERSON_LIST.map(name => (
                     <option key={name} value={name}>{name}</option>
@@ -633,7 +648,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={orderDate}
                   onChange={(e) => setOrderDate(e.target.value)}
-                  disabled
+                  disabled={!canEdit}
                 />
               </div>
 
@@ -644,7 +659,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-select"
                   value={selectedProduct}
                   onChange={(e) => setSelectedProduct(e.target.value)}
-                  disabled={orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                 >
                   {Object.keys(PRODUCT_PRICES).map(name => (
                     <option key={name} value={name}>{name}</option>
@@ -659,7 +674,7 @@ function SalesOrders({ onNavigate }) {
                   type="text"
                   className="filter-control-input"
                   value={`$${currentPrice}`}
-                  disabled
+                  disabled={!canEdit}
                   style={{ background: 'rgba(0,0,0,0.03)' }}
                 />
               </div>
@@ -672,7 +687,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={orderedQty}
                   onChange={(e) => setOrderedQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  disabled={orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                   min={1}
                 />
                 {isStockWarning && (
@@ -690,7 +705,7 @@ function SalesOrders({ onNavigate }) {
                   className="filter-control-input"
                   value={deliveredQty}
                   onChange={(e) => setDeliveredQty(Math.max(0, parseInt(e.target.value) || 0))}
-                  disabled={orderStatus === 'Draft' || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Draft' || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                   min={0}
                 />
               </div>
@@ -704,7 +719,7 @@ function SalesOrders({ onNavigate }) {
                   type="text"
                   className="filter-control-input"
                   value={`$${totalAmount}`}
-                  disabled
+                  disabled={!canEdit}
                   style={{ background: 'rgba(0,0,0,0.03)', fontWeight: '700', fontSize: '16px', color: 'var(--primary)' }}
                 />
               </div>
@@ -717,7 +732,7 @@ function SalesOrders({ onNavigate }) {
                 <button 
                   type="submit" 
                   className="btn btn-primary"
-                  disabled={orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
+                  disabled={!canEdit || orderStatus === 'Delivered' || orderStatus === 'Cancelled'}
                   style={{ marginTop: 0 }}
                 >
                   Save Draft
@@ -729,6 +744,7 @@ function SalesOrders({ onNavigate }) {
                     className="btn btn-outline" 
                     onClick={handleConfirmOrder}
                     style={{ marginTop: 0, borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                    disabled={!canEdit}
                   >
                     Confirm Order
                   </button>
@@ -740,6 +756,7 @@ function SalesOrders({ onNavigate }) {
                     className="btn" 
                     onClick={handleDeliverOrder}
                     style={{ marginTop: 0, background: '#10b981', color: '#fff' }}
+                    disabled={!canEdit}
                   >
                     Update Delivery
                   </button>
@@ -751,6 +768,7 @@ function SalesOrders({ onNavigate }) {
                     className="btn btn-outline" 
                     onClick={handleCancelOrder}
                     style={{ marginTop: 0, borderColor: '#ef4444', color: '#ef4444' }}
+                    disabled={!canEdit}
                   >
                     Cancel Order
                   </button>

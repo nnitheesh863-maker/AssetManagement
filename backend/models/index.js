@@ -5,12 +5,22 @@ const userSchema = new mongoose.Schema({
   login_id: { type: String, required: true, unique: true },
   name: { type: String },
   email: { type: String },
-  role: { type: String },
+  role: { 
+    type: String, 
+    enum: [ "PENDING", "ADMIN", "SALES_USER", "PURCHASE_USER", "MANUFACTURING_USER", "INVENTORY_MANAGER", "BUSINESS_OWNER" ], 
+    default: "PENDING" 
+  },
   position: { type: String },
   address: { type: String },
   mobile: { type: String },
   password: { type: String },
   photo: { type: String },
+  status: { 
+    type: String, 
+    enum: [ "PENDING", "ACTIVE", "INACTIVE", "SUSPENDED" ], 
+    default: "PENDING" 
+  },
+  permissions: { type: [String], default: [] },
   created_at: { type: Date, default: Date.now }
 });
 
@@ -73,7 +83,14 @@ const productSchema = new mongoose.Schema({
   name: { type: String },
   category: { type: String },
   sales_price: { type: Number },
-  cost_price: { type: Number }
+  cost_price: { type: Number },
+  on_hand_qty: { type: Number, default: 0 },
+  reserved_qty: { type: Number, default: 0 },
+  minimum_stock: { type: Number, default: 0 },
+  procurement_strategy: { type: String, enum: ['MTS', 'MTO'], default: 'MTS' },
+  procurement_type: { type: String, enum: ['Purchase', 'Manufacturing'], default: 'Purchase' },
+  vendor: { type: String, default: '' },
+  bom_ref: { type: String, default: '' }
 });
 
 // BOM Schema
@@ -87,6 +104,27 @@ const bomSchema = new mongoose.Schema({
   work_orders: { type: Array, default: [] }
 });
 
+// Stock Ledger Schema
+const stockLedgerSchema = new mongoose.Schema({
+  product_id: { type: String, required: true },
+  movement_type: { 
+    type: String, 
+    enum: [
+      'PURCHASE_RECEIPT', 'SALES_DELIVERY', 
+      'MANUFACTURING_CONSUMPTION', 'MANUFACTURING_PRODUCTION', 
+      'STOCK_ADJUSTMENT', 'RESERVATION', 'RELEASE'
+    ], 
+    required: true 
+  },
+  qty_before: { type: Number, required: true },
+  qty_after: { type: Number, required: true },
+  qty: { type: Number, required: true },
+  ref_type: { type: String, required: true },
+  ref_id: { type: String, required: true },
+  user: { type: String, required: true },
+  date: { type: Date, default: Date.now }
+});
+
 const User = mongoose.model('User', userSchema);
 const SalesOrder = mongoose.model('SalesOrder', salesOrderSchema);
 const PurchaseOrder = mongoose.model('PurchaseOrder', purchaseOrderSchema);
@@ -94,6 +132,7 @@ const ManufacturingOrder = mongoose.model('ManufacturingOrder', manufacturingOrd
 const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 const Product = mongoose.model('Product', productSchema);
 const Bom = mongoose.model('Bom', bomSchema);
+const StockLedger = mongoose.model('StockLedger', stockLedgerSchema);
 
 module.exports = {
   User,
@@ -102,5 +141,6 @@ module.exports = {
   ManufacturingOrder,
   AuditLog,
   Product,
-  Bom
+  Bom,
+  StockLedger
 };

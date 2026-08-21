@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 const connectDB = require("./db");
 const { SalesOrder, PurchaseOrder, ManufacturingOrder, AuditLog, Product, Bom, User } = require("./models");
 
@@ -8,7 +9,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
@@ -39,15 +41,19 @@ async function initDb() {
     if (productsCount === 0) {
       console.log("Seeding products...");
       const initialProducts = [
-        { id: 'PROD-001', name: 'Deluxe Oak Dining Table', category: 'Custom Dining', sales_price: 1200, cost_price: 800 },
-        { id: 'PROD-002', name: 'Ash Wood Chair Pack', category: 'Dining Room', sales_price: 380, cost_price: 250 },
-        { id: 'PROD-003', name: 'Beech Wood Bedframe', category: 'Bedroom Series', sales_price: 1100, cost_price: 750 },
-        { id: 'PROD-004', name: 'Cedar Garden Table', category: 'Patio Series', sales_price: 720, cost_price: 480 },
-        { id: 'PROD-005', name: 'Cherry Wood Bookshelf', category: 'Living Room', sales_price: 950, cost_price: 620 },
-        { id: 'PROD-006', name: 'Birch Coffee Table', category: 'Living Room', sales_price: 410, cost_price: 270 },
-        { id: 'PROD-007', name: 'Walnut Sideboard', category: 'Custom Dining', sales_price: 1500, cost_price: 1000 },
-        { id: 'PROD-008', name: 'Door Frames', category: 'Pre-Production', sales_price: 150, cost_price: 90 },
-        { id: 'PROD-009', name: 'Lighting Frame', category: 'Assembly Line', sales_price: 200, cost_price: 120 }
+        { id: 'PROD-001', name: 'Deluxe Oak Dining Table', category: 'Custom Dining', sales_price: 1200, cost_price: 800, on_hand_qty: 15, reserved_qty: 0, minimum_stock: 5, procurement_strategy: 'MTS', procurement_type: 'Manufacturing', bom_ref: '' },
+        { id: 'PROD-002', name: 'Ash Wood Chair Pack', category: 'Dining Room', sales_price: 380, cost_price: 250, on_hand_qty: 25, reserved_qty: 0, minimum_stock: 10, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'National Timber Traders' },
+        { id: 'PROD-003', name: 'Beech Wood Bedframe', category: 'Bedroom Series', sales_price: 1100, cost_price: 750, on_hand_qty: 12, reserved_qty: 0, minimum_stock: 4, procurement_strategy: 'MTS', procurement_type: 'Manufacturing', bom_ref: '' },
+        { id: 'PROD-004', name: 'Cedar Garden Table', category: 'Patio Series', sales_price: 720, cost_price: 480, on_hand_qty: 6, reserved_qty: 0, minimum_stock: 3, procurement_strategy: 'MTS', procurement_type: 'Manufacturing', bom_ref: '' },
+        { id: 'PROD-005', name: 'Cherry Wood Bookshelf', category: 'Living Room', sales_price: 950, cost_price: 620, on_hand_qty: 8, reserved_qty: 0, minimum_stock: 5, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'Apex Hardware Supplier' },
+        { id: 'PROD-006', name: 'Birch Coffee Table', category: 'Living Room', sales_price: 410, cost_price: 270, on_hand_qty: 14, reserved_qty: 0, minimum_stock: 6, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'Apex Hardware Supplier' },
+        { id: 'PROD-007', name: 'Walnut Sideboard', category: 'Custom Dining', sales_price: 1500, cost_price: 1000, on_hand_qty: 5, reserved_qty: 0, minimum_stock: 2, procurement_strategy: 'MTS', procurement_type: 'Manufacturing', bom_ref: '' },
+        { id: 'PROD-008', name: 'Door Frames', category: 'Pre-Production', sales_price: 150, cost_price: 90, on_hand_qty: 8, reserved_qty: 0, minimum_stock: 20, procurement_strategy: 'MTS', procurement_type: 'Manufacturing', bom_ref: 'BOM-000001' },
+        { id: 'PROD-009', name: 'Lighting Frame', category: 'Assembly Line', sales_price: 200, cost_price: 120, on_hand_qty: 4, reserved_qty: 0, minimum_stock: 10, procurement_strategy: 'MTS', procurement_type: 'Manufacturing', bom_ref: 'BOM-000002' },
+        { id: 'RAW-001', name: 'Raw Lumber', category: 'Raw Materials', sales_price: 0, cost_price: 20, on_hand_qty: 100, reserved_qty: 0, minimum_stock: 50, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'National Timber Traders' },
+        { id: 'RAW-002', name: 'Wood Glue', category: 'Raw Materials', sales_price: 0, cost_price: 5, on_hand_qty: 20, reserved_qty: 0, minimum_stock: 10, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'Apex Hardware Supplier' },
+        { id: 'RAW-003', name: 'Pendant lights', category: 'Raw Materials', sales_price: 0, cost_price: 15, on_hand_qty: 12, reserved_qty: 0, minimum_stock: 10, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'Apex Hardware Supplier' },
+        { id: 'RAW-004', name: 'Drawer handles', category: 'Raw Materials', sales_price: 0, cost_price: 2, on_hand_qty: 80, reserved_qty: 0, minimum_stock: 100, procurement_strategy: 'MTS', procurement_type: 'Purchase', vendor: 'Apex Hardware Supplier' }
       ];
       await Product.create(initialProducts);
     }
@@ -153,12 +159,12 @@ async function initDb() {
     if (usersCount === 0) {
       console.log("Seeding users...");
       const initialUsers = [
-        { login_id: 'admin001', name: 'System Administrator', email: 'admin@shivfurniture.com', role: 'System Administrator', position: 'Admin', address: 'Mumbai', mobile: '+919999999999', password: 'admin123', photo: '' },
-        { login_id: 'mahesh_g', name: 'Mahesh Gupta', email: 'mahesh@shivfurniture.com', role: 'User', position: 'Sales Manager', address: 'Colaba, Mumbai, 400001', mobile: '+918000000000', password: 'password123', photo: '' },
-        { login_id: 'nisarg_v', name: 'Nisarg Verma', email: 'nisarg@gmail.com', role: 'User', position: 'Purchase Head', address: 'Andheri, Mumbai, 400053', mobile: '+919000000001', password: 'password123', photo: '' },
-        { login_id: 'sweta_k', name: 'Sweta Kediva', email: 'sweta.kediva@kprcas.ac.in', role: 'User', position: 'Warehouse Staff', address: 'Bandra, Mumbai, 400050', mobile: '+919000000002', password: 'password123', photo: '' },
-        { login_id: 'dinesh_p', name: 'Dinesh Patel', email: 'dinesh@gmail.com', role: 'User', position: 'Account Manager', address: 'Dadar, Mumbai, 400014', mobile: '+919000000003', password: 'password123', photo: '' },
-        { login_id: 'trisha_k', name: 'Trisha K.', email: 'trisha@gmail.com', role: 'User', position: 'HR Executive', address: 'Borivali, Mumbai, 400092', mobile: '+919000000004', password: 'password123', photo: '' }
+        { login_id: 'admin001', name: 'System Administrator', email: 'admin@shivfurniture.com', role: 'ADMIN', position: 'Admin', address: 'Mumbai', mobile: '+919999999999', password: bcrypt.hashSync('admin123', 10), photo: '', status: 'ACTIVE' },
+        { login_id: 'mahesh_g', name: 'Mahesh Gupta', email: 'mahesh@shivfurniture.com', role: 'SALES_USER', position: 'Sales Manager', address: 'Colaba, Mumbai, 400001', mobile: '+918000000000', password: bcrypt.hashSync('password123', 10), photo: '', status: 'ACTIVE' },
+        { login_id: 'nisarg_v', name: 'Nisarg Verma', email: 'nisarg@gmail.com', role: 'PURCHASE_USER', position: 'Purchase Head', address: 'Andheri, Mumbai, 400053', mobile: '+919000000001', password: bcrypt.hashSync('password123', 10), photo: '', status: 'ACTIVE' },
+        { login_id: 'sweta_k', name: 'Sweta Kediva', email: 'sweta.kediva@kprcas.ac.in', role: 'INVENTORY_MANAGER', position: 'Warehouse Staff', address: 'Bandra, Mumbai, 400050', mobile: '+919000000002', password: bcrypt.hashSync('password123', 10), photo: '', status: 'ACTIVE' },
+        { login_id: 'dinesh_p', name: 'Dinesh Patel', email: 'dinesh@gmail.com', role: 'BUSINESS_OWNER', position: 'Account Manager', address: 'Dadar, Mumbai, 400014', mobile: '+919000000003', password: bcrypt.hashSync('password123', 10), photo: '', status: 'ACTIVE' },
+        { login_id: 'trisha_k', name: 'Trisha K.', email: 'trisha@gmail.com', role: 'MANUFACTURING_USER', position: 'HR Executive', address: 'Borivali, Mumbai, 400092', mobile: '+919000000004', password: bcrypt.hashSync('password123', 10), photo: '', status: 'ACTIVE' }
       ];
       await User.create(initialUsers);
     }

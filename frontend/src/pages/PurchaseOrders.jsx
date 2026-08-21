@@ -16,7 +16,12 @@ const RESPONSIBLE_LIST = ['Meera Sen', 'Amit Sharma', 'Ravi Verma', 'Neha Verma'
 // Vendors list
 const VENDOR_LIST = ['Raw Teak Supplier Co.', 'Hardware Supplies Depot', 'Global Glass & Lighting Inc.'];
 
-function PurchaseOrders({ onNavigate }) {
+function PurchaseOrders({ onNavigate, currentUser }) {
+  const role = currentUser?.role || '';
+  const position = (currentUser?.position || '').toLowerCase();
+  const isAdmin = role === 'System Administrator' || role === 'ADMIN' || position.includes('admin');
+  const canEdit = isAdmin || role === 'PURCHASE_USER' || role === 'BUSINESS_OWNER' || position.includes('purchase') || position.includes('account');
+
   const [purchaseOrders, setPurchaseOrders] = useState(() => {
     const saved = localStorage.getItem('assetflow_purchase_orders');
     if (saved) return JSON.parse(saved);
@@ -50,9 +55,13 @@ function PurchaseOrders({ onNavigate }) {
   const API_BASE_URL = 'http://localhost:5000/api';
 
   const syncToBackend = (method, endpoint, bodyObj) => {
+    const token = localStorage.getItem('assetflow_token');
     fetch(`${API_BASE_URL}/${endpoint}`, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify(bodyObj)
     }).catch(err => console.warn(`Failed to sync ${method} ${endpoint} to backend:`, err));
   };
@@ -90,7 +99,10 @@ function PurchaseOrders({ onNavigate }) {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/purchase-orders`);
+        const token = localStorage.getItem('assetflow_token');
+        const res = await fetch(`${API_BASE_URL}/purchase-orders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.length > 0) {
@@ -366,8 +378,8 @@ function PurchaseOrders({ onNavigate }) {
   const isProcurementWarning = orderedQty > 50;
 
   // Validation rules lock status checks
-  const isFieldsLocked = orderStatus === 'Confirmed' || orderStatus === 'Partially Received' || orderStatus === 'Fully Received' || orderStatus === 'Cancelled';
-  const isReceivedQtyEditable = orderStatus === 'Confirmed' || orderStatus === 'Partially Received';
+  const isFieldsLocked = !canEdit || orderStatus === 'Confirmed' || orderStatus === 'Partially Received' || orderStatus === 'Fully Received' || orderStatus === 'Cancelled';
+  const isReceivedQtyEditable = canEdit && (orderStatus === 'Confirmed' || orderStatus === 'Partially Received');
 
   return (
     <div className="page-content animated fadeIn">
@@ -394,13 +406,15 @@ function PurchaseOrders({ onNavigate }) {
           >
             Kanban Board
           </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleNewOrder}
-            style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
-          >
-            ＋ New Purchase Order
-          </button>
+          {canEdit && (
+            <button 
+              className="btn btn-primary" 
+              onClick={handleNewOrder}
+              style={{ marginTop: 0, background: '#2563eb', borderColor: '#2563eb' }}
+            >
+              ＋ New Purchase Order
+            </button>
+          )}
         </div>
       </div>
 
@@ -688,16 +702,18 @@ function PurchaseOrders({ onNavigate }) {
             {/* BUTTON BAR */}
             <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary"
-                  disabled={orderStatus === 'Fully Received' || orderStatus === 'Cancelled'}
-                  style={{ marginTop: 0 }}
-                >
-                  Save Draft
-                </button>
+                {canEdit && (
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={orderStatus === 'Fully Received' || orderStatus === 'Cancelled'}
+                    style={{ marginTop: 0 }}
+                  >
+                    Save Draft
+                  </button>
+                )}
                 
-                {orderStatus === 'Draft' && (
+                {canEdit && orderStatus === 'Draft' && (
                   <button 
                     type="button" 
                     className="btn btn-outline" 
@@ -708,7 +724,7 @@ function PurchaseOrders({ onNavigate }) {
                   </button>
                 )}
 
-                {(orderStatus === 'Confirmed' || orderStatus === 'Partially Received') && (
+                {canEdit && (orderStatus === 'Confirmed' || orderStatus === 'Partially Received') && (
                   <button 
                     type="button" 
                     className="btn" 
@@ -719,7 +735,7 @@ function PurchaseOrders({ onNavigate }) {
                   </button>
                 )}
 
-                {(orderStatus === 'Draft' || orderStatus === 'Confirmed' || orderStatus === 'Partially Received') && (
+                {canEdit && (orderStatus === 'Draft' || orderStatus === 'Confirmed' || orderStatus === 'Partially Received') && (
                   <button 
                     type="button" 
                     className="btn btn-outline" 
