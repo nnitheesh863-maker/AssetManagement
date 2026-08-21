@@ -12,8 +12,10 @@ app.use(express.json());
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
 const salesRoutes = require('./routes/salesRoutes');
+const purchaseRoutes = require('./routes/purchaseRoutes');
 app.use('/api', userRoutes);
 app.use('/api', salesRoutes);
+app.use('/api', purchaseRoutes);
 
 // Initialize Database Tables on Startup
 async function initDb() {
@@ -370,55 +372,7 @@ app.get("/api/health", (req, res) => {
 
 // Sales Orders Routes have been moved to routes/salesRoutes.js
 
-// --- Purchase Orders Routes ---
-app.get("/api/purchase-orders", async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT * FROM purchase_orders ORDER BY id DESC");
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/purchase-orders", async (req, res) => {
-  try {
-    const { id, date, vendor, address, responsible, item, qty, received, status, owner } = req.body;
-    await pool.query(
-      `INSERT INTO purchase_orders (id, date, vendor, address, responsible, item, qty, received, status, owner) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [id, date, vendor, address, responsible, item, qty || 0, received || 0, status, owner || ""]
-    );
-    res.status(201).json({ message: "Purchase order created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/purchase-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { date, vendor, address, responsible, item, qty, received, status, owner } = req.body;
-    await pool.query(
-      `UPDATE purchase_orders 
-       SET date = $1, vendor = $2, address = $3, responsible = $4, item = $5, qty = $6, received = $7, status = $8, owner = $9 
-       WHERE id = $10`,
-      [date, vendor, address, responsible, item, qty || 0, received || 0, status, owner || "", id]
-    );
-    res.json({ message: "Purchase order updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/purchase-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await pool.query("DELETE FROM purchase_orders WHERE id = $1", [id]);
-    res.json({ message: "Purchase order deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Purchase Orders Routes have been moved to routes/purchaseRoutes.js
 
 // --- Manufacturing Orders Routes ---
 app.get("/api/manufacturing-orders", async (req, res) => {
