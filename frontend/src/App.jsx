@@ -59,9 +59,9 @@ function App() {
   // Auto-redirect logged-in users
   useEffect(() => {
     if (currentUser) {
-      const isAdm = currentUser.role === 'System Administrator' || 
-                    currentUser.role === 'ADMIN' || 
-                    String(currentUser.role).toLowerCase().includes('admin');
+      const isAdm = currentUser.role === 'System Administrator' ||
+        currentUser.role === 'ADMIN' ||
+        String(currentUser.role).toLowerCase().includes('admin');
       if (isAdm) {
         setCurrentView('admin-dashboard');
       } else {
@@ -85,7 +85,7 @@ function App() {
 
     // Switch to login page or auto-login if admin
     if (newUser.role === 'System Administrator') {
-      setCurrentUser(newUser); 
+      setCurrentUser(newUser);
     } else {
       setCurrentView('login');
     }
@@ -131,8 +131,8 @@ function App() {
 
   return (
     <div className={getRootBgClass()}>
-      <Toaster 
-        position="top-right" 
+      <Toaster
+        position="top-right"
         toastOptions={{
           style: {
             background: '#1e293b',
@@ -191,9 +191,9 @@ function App() {
                   {currentView === 'products' && <Products />}
                   {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} />}
                   {currentView === 'profile' && (
-                    <Profile 
-                      currentUser={currentUser} 
-                      onProfileUpdate={(newPhoto) => setProfilePhoto(newPhoto)} 
+                    <Profile
+                      currentUser={currentUser}
+                      onProfileUpdate={(newPhoto) => setProfilePhoto(newPhoto)}
                     />
                   )}
                   {currentView === 'settings' && <Settings />}

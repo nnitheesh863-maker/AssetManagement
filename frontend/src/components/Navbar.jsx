@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -7,13 +7,53 @@ function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, search
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80");
   const fileInputRef = useRef(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && currentUser.photo) {
+      setProfileImage(currentUser.photo);
+    }
+  }, [currentUser]);
   
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
-      toast.success('Profile photo updated locally');
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result);
+        toast.success('Photo staged for saving');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!currentUser) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/users/${currentUser.login_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: currentUser.name,
+          email: currentUser.email,
+          role: currentUser.role,
+          position: currentUser.position,
+          address: currentUser.address,
+          mobile: currentUser.mobile,
+          photo: profileImage
+        })
+      });
+      if (res.ok) {
+        toast.success('Profile saved permanently!');
+        setIsProfileModalOpen(false);
+      } else {
+        toast.error('Failed to save profile');
+      }
+    } catch (err) {
+      toast.error('Error saving profile');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -182,15 +222,13 @@ function Navbar({ currentUser, onLogout, onToggleSidebar, onSearchChange, search
               {/* Actions */}
               <div style={{ display: 'flex', gap: '12px', marginTop: '32px' }}>
                 <button 
-                  onClick={() => {
-                    toast.success('Profile details saved successfully!');
-                    setIsProfileModalOpen(false);
-                  }}
-                  style={{ flex: 1, background: '#d97757', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '14px', transition: 'background 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.background = '#c26649'}
-                  onMouseLeave={(e) => e.target.style.background = '#d97757'}
+                  onClick={handleSaveProfile}
+                  disabled={isSaving}
+                  style={{ flex: 1, background: '#d97757', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '14px', transition: 'background 0.2s', opacity: isSaving ? 0.7 : 1 }}
+                  onMouseEnter={(e) => !isSaving && (e.target.style.background = '#c26649')}
+                  onMouseLeave={(e) => !isSaving && (e.target.style.background = '#d97757')}
                 >
-                  Save Changes
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button 
                   onClick={onLogout}

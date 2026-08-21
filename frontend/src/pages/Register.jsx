@@ -92,7 +92,7 @@ function Register({ users, onRegisterSuccess, onNavigateToLogin }) {
     if (adminCreationKey && password === adminCreationKey) {
       role = 'System Administrator';
     }
-    
+
     const newUser = { loginId, email, password, role };
     setSuccessMessage('Registration successful! Redirecting...');
     setTimeout(() => {

@@ -24,7 +24,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
       if (window.confetti) {
         if (isAdmin) {
           // 50x Ultra Premium Admin full screen blast using bright gold & orange particles
-          
+
           // Left-side burst
           window.confetti({
             particleCount: 150,
@@ -93,7 +93,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
         const isSystemAdmin = user.role === 'System Administrator' || user.role === 'ADMIN';
         setSuccessMessage(isSystemAdmin ? 'Welcome, Administrator!' : 'Logged in successfully!');
         triggerExplosion(isSystemAdmin);
-        
+
         setTimeout(() => {
           onLoginSuccess({
             loginId: user.login_id,
@@ -130,7 +130,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
         if (user.role === 'System Administrator' || user.role === 'ADMIN') {
           setSuccessMessage('Welcome, Administrator!');
           triggerExplosion(true);
-          
+
           setTimeout(() => {
             onLoginSuccess({
               loginId: user.login_id,

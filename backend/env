@@ -1,2 +1,2 @@
-DATABASE_URL="postgresql://uixtit0fugxh4jdm5ums:DtyCsWjnpFCpsazlZ6i0VT7tqZYdIG@b7i4b3amec4ub55j3wgp-postgresql.services.clever-cloud.com:50013/b7i4b3amec4ub55j3wgp"
+DATABASE_URL="mongodb+srv://nitheesh:@cluster0.whhnowf.mongodb.net/?appName=Cluster0"
 PORT=5000

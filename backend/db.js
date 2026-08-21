@@ -1,16 +1,18 @@
 require("dotenv").config();
-
-const { Pool } = require("pg");
+const mongoose = require("mongoose");
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is not set in backend/.env");
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.DATABASE_URL);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`Error connecting to MongoDB: ${error.message}`);
+    process.exit(1);
   }
-});
+};
 
-module.exports = pool;
+module.exports = connectDB;

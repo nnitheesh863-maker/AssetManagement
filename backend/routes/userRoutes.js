@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { User } = require('../models');
 
 // --- Users Management Routes ---
 router.get("/users", async (req, res) => {
   try {
-    const { rows } = await pool.query("SELECT login_id, name, email, role, position, address, mobile, photo, created_at FROM users ORDER BY created_at DESC");
-    res.json(rows);
+    const data = await User.find().sort({ created_at: -1 }).select("-password");
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -15,11 +15,9 @@ router.get("/users", async (req, res) => {
 router.post("/users", async (req, res) => {
   try {
     const { loginId, name, email, role, position, address, mobile, password, photo } = req.body;
-    await pool.query(
-      `INSERT INTO users (login_id, name, email, role, position, address, mobile, password, photo) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [loginId, name, email, role, position, address, mobile, password, photo || ""]
-    );
+    await User.create({
+      login_id: loginId, name, email, role, position, address, mobile, password, photo: photo || ""
+    });
     res.status(201).json({ message: "User created successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -31,17 +29,12 @@ router.put("/users/:loginId", async (req, res) => {
     const { loginId } = req.params;
     const { name, email, role, position, address, mobile, password, photo } = req.body;
     
+    let updateData = { name, email, role, position, address, mobile, photo: photo || "" };
     if (password) {
-      await pool.query(
-        `UPDATE users SET name = $1, email = $2, role = $3, position = $4, address = $5, mobile = $6, password = $7, photo = $8 WHERE login_id = $9`,
-        [name, email, role, position, address, mobile, password, photo || "", loginId]
-      );
-    } else {
-      await pool.query(
-        `UPDATE users SET name = $1, email = $2, role = $3, position = $4, address = $5, mobile = $6, photo = $7 WHERE login_id = $8`,
-        [name, email, role, position, address, mobile, photo || "", loginId]
-      );
+      updateData.password = password;
     }
+    
+    await User.findOneAndUpdate({ login_id: loginId }, updateData);
     res.json({ message: "User updated successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -51,7 +44,7 @@ router.put("/users/:loginId", async (req, res) => {
 router.delete("/users/:loginId", async (req, res) => {
   try {
     const { loginId } = req.params;
-    await pool.query("DELETE FROM users WHERE login_id = $1", [loginId]);
+    await User.findOneAndDelete({ login_id: loginId });
     res.json({ message: "User deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -62,12 +55,12 @@ router.delete("/users/:loginId", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { loginId, password } = req.body;
-    const { rows } = await pool.query("SELECT * FROM users WHERE login_id = $1 AND password = $2", [loginId, password]);
+    const user = await User.findOne({ login_id: loginId, password });
     
-    if (rows.length > 0) {
-      const user = rows[0];
-      delete user.password; // Don't send password back to client
-      res.json({ success: true, user });
+    if (user) {
+      const userObj = user.toObject();
+      delete userObj.password; // Don't send password back to client
+      res.json({ success: true, user: userObj });
     } else {
       res.status(401).json({ success: false, message: "Invalid credentials" });
     }
