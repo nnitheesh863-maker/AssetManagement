@@ -21,12 +21,14 @@ const purchaseRoutes = require('./routes/purchaseRoutes');
 const manufacturingRoutes = require('./routes/manufacturingRoutes');
 const productRoutes = require('./routes/productRoutes');
 const bomRoutes = require('./routes/bomRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
 app.use('/api', userRoutes);
 app.use('/api', salesRoutes);
 app.use('/api', purchaseRoutes);
 app.use('/api', manufacturingRoutes);
 app.use('/api', productRoutes);
 app.use('/api', bomRoutes);
+app.use('/api', inventoryRoutes);
 
 const auditRoutes = require('./routes/auditRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');

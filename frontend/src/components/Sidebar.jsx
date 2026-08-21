@@ -18,6 +18,7 @@ function Sidebar({ currentView, onNavigate, isCollapsed, currentUser }) {
   const canSeeMfg = isAdmin || isManufacturing || isOwner;
   const canSeeBom = isAdmin || isManufacturing || isOwner;
   const canSeeProducts = isAdmin || isSales || isPurchase || isInventory || isOwner;
+  const canSeeInventory = isAdmin || isInventory || isOwner;
   const canSeeUsers = isAdmin;
   const canSeeAudit = isAdmin;
 
@@ -140,6 +141,43 @@ function Sidebar({ currentView, onNavigate, isCollapsed, currentUser }) {
               label="Products" 
               icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>} 
             />
+          )}
+          {canSeeInventory && (
+            <>
+              <AnimatePresence>
+                {!isCollapsed && <motion.div className="sf-nav-section" style={{marginTop: '10px'}} variants={textVariants} initial="hidden" animate="visible" exit="hidden">Inventory Management</motion.div>}
+              </AnimatePresence>
+              <NavItem
+                id="inventory-dashboard"
+                label="Dashboard"
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>}
+              />
+              <NavItem
+                id="inventory-stock"
+                label="Stock Management"
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}
+              />
+              <NavItem
+                id="inventory-ledger"
+                label="Stock Ledger"
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>}
+              />
+              <NavItem
+                id="inventory-adjustment"
+                label="Stock Adjustment"
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>}
+              />
+              <NavItem
+                id="inventory-warehouses"
+                label="Warehouses"
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}
+              />
+              <NavItem
+                id="inventory-reports"
+                label="Reports"
+                icon={<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+              />
+            </>
           )}
           {canSeeUsers && (
             <NavItem 

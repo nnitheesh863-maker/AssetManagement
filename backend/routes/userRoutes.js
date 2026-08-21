@@ -113,12 +113,19 @@ router.post("/register", async (req, res) => {
 
 // --- Authentication Route ---
 router.post("/login", async (req, res) => {
+   console.log('Request body:', req.body);
+   const { loginId, password } = req.body;
   try {
-    const { loginId, password } = req.body;
     const user = await User.findOne({ login_id: loginId });
+    if (!user) {
+      console.log('User not found for loginId:', loginId);
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
     
     if (user) {
-      const isMatch = bcrypt.compareSync(password, user.password);
+      console.log('Received password:', password);
+    const isMatch = bcrypt.compareSync(password, user.password);
+    console.log('Password match result:', isMatch);
       if (isMatch) {
         if (user.status === 'SUSPENDED' || user.status === 'INACTIVE') {
           return res.status(403).json({ success: false, message: `Access Denied: Account status is ${user.status}` });

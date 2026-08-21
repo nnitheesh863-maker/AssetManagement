@@ -95,16 +95,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
         triggerExplosion(isSystemAdmin);
 
         localStorage.setItem('assetflow_token', data.token);
-        setTimeout(() => {
-          onLoginSuccess({
-            loginId: user.login_id,
-            email: user.email,
-            role: user.role || 'User',
-            name: user.name,
-            photo: user.photo,
-            token: data.token
-          });
-        }, 1800);
+        onLoginSuccess({
+          loginId: user.login_id,
+          email: user.email,
+          role: user.role || 'User',
+          name: user.name,
+          photo: user.photo,
+          token: data.token
+        });
       } else {
         setErrorMessage(data.message || 'Invalid Login Id or Password');
       }
@@ -134,16 +132,14 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
           triggerExplosion(true);
 
         localStorage.setItem('assetflow_token', data.token);
-        setTimeout(() => {
-          onLoginSuccess({
-            loginId: user.login_id,
-            email: user.email,
-            role: 'System Administrator',
-            name: user.name,
-            photo: user.photo,
-            token: data.token
-          });
-        }, 1800);
+        onLoginSuccess({
+          loginId: user.login_id,
+          email: user.email,
+          role: 'System Administrator',
+          name: user.name,
+          photo: user.photo,
+          token: data.token
+        });
         } else {
           setErrorMessage('Access Denied: You are not an Administrator.');
         }

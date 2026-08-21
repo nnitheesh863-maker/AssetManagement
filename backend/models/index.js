@@ -191,6 +191,48 @@ const Customer = mongoose.model('Customer', customerSchema);
 const Vendor = mongoose.model('Vendor', vendorSchema);
 const GoodsReceipt = mongoose.model('GoodsReceipt', goodsReceiptSchema);
 
+// Inventory Schema
+const inventorySchema = new mongoose.Schema({
+  productId: { type: String, required: true },
+  productName: { type: String },
+  category: { type: String },
+  type: { type: String, enum: ['RAW', 'FINISHED'], default: 'FINISHED' },
+  quantity: { type: Number, default: 0 },
+  reservedQuantity: { type: Number, default: 0 },
+  costPrice: { type: Number },
+  sellingPrice: { type: Number },
+  minimumStock: { type: Number, default: 0 },
+  warehouseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Warehouse' },
+  status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' }
+}, { timestamps: true });
+
+inventorySchema.virtual('availableQuantity').get(function () {
+  return this.quantity - this.reservedQuantity;
+});
+
+// Warehouse Schema
+const warehouseSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  location: { type: String },
+  manager: { type: String },
+  capacity: { type: Number },
+  status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' }
+}, { timestamps: true });
+
+// Dedicated Inventory Audit Log Schema
+const inventoryAuditLogSchema = new mongoose.Schema({
+  action: { type: String, required: true },
+  entity: { type: String, default: 'Inventory' },
+  oldValue: { type: mongoose.Schema.Types.Mixed },
+  newValue: { type: mongoose.Schema.Types.Mixed },
+  userId: { type: String, required: true },
+  reason: { type: String }
+}, { timestamps: true });
+
+const Inventory = mongoose.model('Inventory', inventorySchema);
+const Warehouse = mongoose.model('Warehouse', warehouseSchema);
+const InventoryAuditLog = mongoose.model('InventoryAuditLog', inventoryAuditLogSchema);
+
 module.exports = {
   User,
   SalesOrder,
@@ -202,5 +244,8 @@ module.exports = {
   StockLedger,
   Customer,
   Vendor,
-  GoodsReceipt
+  GoodsReceipt,
+  Inventory,
+  Warehouse,
+  InventoryAuditLog
 };

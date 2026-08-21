@@ -305,9 +305,9 @@ export default function AdminDashboard({ currentUser, openAdminCreation }) {
     <div className="animated fadeIn" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {/* ─── HEADER BAR ─── */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:'1.5px solid rgba(207,142,109,0.13)', background:'rgba(30,41,59,0.95)', backdropFilter:'blur(12px)', flexWrap:'wrap', gap:'12px', flexShrink:0 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:'1.5px solid rgba(79,70,229,0.15)', background:'rgba(15,23,42,0.95)', backdropFilter:'blur(12px)', flexWrap:'wrap', gap:'12px', flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-          <div style={{ width:'40px', height:'40px', borderRadius:'12px', background:'linear-gradient(135deg,#CF8E6D,#a0683a)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <div style={{ width:'40px', height:'40px', borderRadius:'12px', background:'linear-gradient(135deg,#4f46e5,#3b82f6)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
             <svg fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="2.5" style={{width:'20px',height:'20px'}}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
@@ -323,7 +323,7 @@ export default function AdminDashboard({ currentUser, openAdminCreation }) {
             Settings
           </button>
           <button onClick={() => setIsAddModalOpen(true)}
-            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', borderRadius:'10px', border:'none', background:'linear-gradient(135deg,#CF8E6D,#a0683a)', cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#fff', boxShadow:'0 3px 12px rgba(207,142,109,0.35)' }}>
+            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 16px', borderRadius:'10px', border:'none', background:'linear-gradient(135deg,#4f46e5,#3b82f6)', cursor:'pointer', fontSize:'12px', fontWeight:'700', color:'#fff', boxShadow:'0 3px 12px rgba(79,70,229,0.35)' }}>
             Add User
           </button>
         </div>

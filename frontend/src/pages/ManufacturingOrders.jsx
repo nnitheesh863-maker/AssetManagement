@@ -743,9 +743,9 @@ function ManufacturingOrdersTab({ currentUser, boms, products }) {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/manufacturing-orders');
-      if (res.ok) setOrders(await res.json());
-    } catch { toast.error('Failed to load orders'); }
+      const { mockDashboardData } = await import('../data/mockData');
+      setOrders(mockDashboardData.manufacturingOrders);
+    } catch { toast.error('Failed to load mock orders'); }
     setLoading(false);
   }, []);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);

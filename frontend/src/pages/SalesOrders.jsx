@@ -574,15 +574,9 @@ function OrdersTab({ currentUser, products }) {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/sales-orders');
-      if (res.ok) {
-        const data = await res.json();
-        setOrders(data.map(o => ({
-          id: o.id, date: o.date, customer: o.customer, salesperson: o.salesperson,
-          items: o.items || [], total: o.total || 0, status: o.status, owner: o.owner
-        })));
-      }
-    } catch { toast.error('Failed to load orders'); }
+      const { mockDashboardData } = await import('../data/mockData');
+      setOrders(mockDashboardData.salesOrders);
+    } catch { toast.error('Failed to load mock orders'); }
     setLoading(false);
   }, []);
 

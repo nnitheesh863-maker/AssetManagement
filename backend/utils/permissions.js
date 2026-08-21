@@ -17,7 +17,7 @@ const ROLE_PERMISSIONS = {
     "dashboard.view", "manufacturing.view", "manufacturing.create", "manufacturing.edit", "bom.view", "inventory.view"
   ],
   INVENTORY_MANAGER: [
-    "dashboard.view", "inventory.view", "inventory.edit", "products.view", "products.edit", "stock_ledger.view", "procurement.view"
+    "dashboard.view", "inventory.view", "inventory.edit", "inventory.adjust", "inventory.reserve", "inventory.transfer", "products.view", "products.edit", "stock_ledger.view", "procurement.view"
   ],
   BUSINESS_OWNER: [
     "dashboard.view", "products.view", "products.create", "products.edit", "sales.view", "purchase.view", "manufacturing.view", "inventory.view", "procurement.view", "analytics.view"

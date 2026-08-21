@@ -6,6 +6,12 @@ import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import InventoryDashboard from './pages/inventory/InventoryDashboard';
+import StockManagement from './pages/inventory/StockManagement';
+import StockLedger from './pages/inventory/StockLedger';
+import StockAdjustment from './pages/inventory/StockAdjustment';
+import Warehouse from './pages/inventory/Warehouse';
+import InventoryReports from './pages/inventory/InventoryReports';
 import Profile from './pages/Profile';
 import SalesOrders from './pages/SalesOrders';
 import PurchaseOrders from './pages/PurchaseOrders';
@@ -62,6 +68,12 @@ const VIEW_PERMISSIONS = {
   'manufacturing-orders': 'manufacturing.view',
   'bom': 'bom.view',
   'products': 'products.view',
+  'inventory-dashboard': 'inventory.view',
+  'inventory-stock': 'inventory.view',
+  'inventory-ledger': 'inventory.view',
+  'inventory-adjustment': 'inventory.edit',
+  'inventory-warehouses': 'inventory.view',
+  'inventory-reports': 'inventory.view',
   'users': 'users.view',
   'audit-logs': 'audit.view',
 };
@@ -77,14 +89,7 @@ function App() {
   // Auto-redirect logged-in users based on role
   useEffect(() => {
     if (currentUser) {
-      const isAdm = currentUser.role === 'System Administrator' ||
-        currentUser.role === 'ADMIN' ||
-        String(currentUser.role).toLowerCase().includes('admin');
-      if (isAdm) {
-        setCurrentView('users');
-      } else {
-        setCurrentView('dashboard');
-      }
+      setCurrentView('dashboard');
     } else {
       setCurrentView('login');
     }
@@ -213,6 +218,12 @@ function App() {
                   {currentView === 'manufacturing-orders' && <ManufacturingOrders onNavigate={handleNavigation} currentUser={currentUser} />}
                   {currentView === 'bom' && <BOM onNavigate={handleNavigation} currentUser={currentUser} />}
                   {currentView === 'products' && <Products currentUser={currentUser} />}
+                  {currentView === 'inventory-dashboard' && <InventoryDashboard currentUser={currentUser} />}
+                  {currentView === 'inventory-stock' && <StockManagement currentUser={currentUser} />}
+                  {currentView === 'inventory-ledger' && <StockLedger currentUser={currentUser} />}
+                  {currentView === 'inventory-adjustment' && <StockAdjustment currentUser={currentUser} />}
+                  {currentView === 'inventory-warehouses' && <Warehouse currentUser={currentUser} />}
+                  {currentView === 'inventory-reports' && <InventoryReports currentUser={currentUser} />}
                   {currentView === 'audit-logs' && <AuditLogs defaultModuleFilter={auditLogModuleFilter} currentUser={currentUser} />}
                   {currentView === 'users' && <AdminDashboard currentUser={currentUser} />}
                   {currentView === 'profile' && (

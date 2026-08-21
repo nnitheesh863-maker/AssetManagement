@@ -784,9 +784,9 @@ function PurchaseOrdersTab({ currentUser, vendors, products }) {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/purchase-orders');
-      if (res.ok) setOrders(await res.json());
-    } catch { toast.error('Failed to load orders'); }
+      const { mockDashboardData } = await import('../data/mockData');
+      setOrders(mockDashboardData.purchaseOrders);
+    } catch { toast.error('Failed to load mock orders'); }
     setLoading(false);
   }, []);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
