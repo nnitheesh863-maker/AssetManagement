@@ -23,6 +23,11 @@ app.use('/api', manufacturingRoutes);
 app.use('/api', productRoutes);
 app.use('/api', bomRoutes);
 
+const auditRoutes = require('./routes/auditRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+app.use('/api', auditRoutes);
+app.use('/api', dashboardRoutes);
+
 // Initialize Database Tables on Startup
 async function initDb() {
   try {
@@ -382,75 +387,14 @@ app.get("/api/health", (req, res) => {
 
 // Manufacturing Orders Routes have been moved to routes/manufacturingRoutes.js
 
-// --- Audit Logs Routes ---
-app.get("/api/audit-logs", async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT * FROM audit_logs ORDER BY id DESC");
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/audit-logs", async (req, res) => {
-  try {
-    const { datetime, user, module, type, record_id, action, field, old_val, new_val } = req.body;
-    await pool.query(
-      `INSERT INTO audit_logs (datetime, "user", module, type, record_id, action, field, old_val, new_val) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [datetime, user, module, type, record_id, action, field || "", old_val || "", new_val || ""]
-    );
-    res.status(201).json({ message: "Audit log created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/audit-logs/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await pool.query("DELETE FROM audit_logs WHERE id = $1", [id]);
-    res.json({ message: "Audit log deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Audit Logs Routes have been moved to routes/auditRoutes.js
 
 // Products Routes have been moved to routes/productRoutes.js
 // BOM Templates Routes have been moved to routes/bomRoutes.js
 
 // Users Management & Authentication Routes have been moved to routes/userRoutes.js
 
-// --- Dashboard Analytics Aggregation Route ---
-app.get("/api/dashboard/analytics", async (req, res) => {
-  try {
-    // Run multiple queries in parallel for fast dashboard loading
-    const [salesResult, purchaseResult, mfgResult, productsResult, recentAudits] = await Promise.all([
-      pool.query(`
-        SELECT COUNT(*) as total_orders, COALESCE(SUM(total), 0) as total_revenue, COUNT(CASE WHEN status = 'Delivered' THEN 1 END) as completed_orders FROM sales_orders
-      `),
-      pool.query(`
-        SELECT COUNT(*) as total_pos, COALESCE(SUM(qty), 0) as items_ordered, COALESCE(SUM(received), 0) as items_received FROM purchase_orders
-      `),
-      pool.query(`
-        SELECT COUNT(*) as active_mfg, COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_mfg FROM manufacturing_orders
-      `),
-      pool.query(`SELECT COUNT(*) as total_products FROM products`),
-      pool.query(`SELECT * FROM audit_logs ORDER BY id DESC LIMIT 10`)
-    ]);
-
-    res.json({
-      sales: salesResult.rows[0],
-      purchases: purchaseResult.rows[0],
-      manufacturing: mfgResult.rows[0],
-      inventory: productsResult.rows[0],
-      recentActivity: recentAudits.rows,
-      timestamp: new Date()
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Dashboard Analytics Route has been moved to routes/dashboardRoutes.js
 
 // Start Server & Init DB
 app.listen(PORT, async () => {
