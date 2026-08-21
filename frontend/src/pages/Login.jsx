@@ -107,7 +107,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
 
     const allUsers = getFreshUsers();
     const matchedUser = allUsers.find(
-      (u) => u.loginId === loginId && u.password === password
+      (u) => (u.loginId.toLowerCase() === loginId.trim().toLowerCase() || u.email.toLowerCase() === loginId.trim().toLowerCase()) && u.password === password
     );
 
     if (matchedUser) {
@@ -148,7 +148,7 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     // Check created admin accounts from localStorage (fresh read)
     const allUsers = getFreshUsers();
     const matchedAdmin = allUsers.find(
-      (u) => u.loginId === loginId && u.password === password &&
+      (u) => (u.loginId.toLowerCase() === loginId.trim().toLowerCase() || u.email.toLowerCase() === loginId.trim().toLowerCase()) && u.password === password &&
              (u.role === 'System Administrator' || u.role === 'ADMIN')
     );
 

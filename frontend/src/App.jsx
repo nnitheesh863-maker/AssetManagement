@@ -156,7 +156,7 @@ function App() {
         )}
 
         {/* VIEW ROUTER PANEL */}
-        <main className="content-container">
+        <main className="content-container" style={{ padding: 0 }}>
           {!currentUser ? (
             /* UNAUTHENTICATED FLOW */
             <>

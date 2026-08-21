@@ -1,787 +1,309 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import './Dashboard.css';
 import { mockDashboardData } from '../data/mockData';
 
-function Dashboard({ currentUser, onNavigate, searchVal }) {
-  // Store the active filter state
-  const [activeFilter, setActiveFilter] = useState(null);
+function Dashboard({ currentUser, onNavigate }) {
+  // Use existing mock data
+  const [salesOrders] = useState(mockDashboardData.salesOrders || []);
+  const [purchaseOrders] = useState(mockDashboardData.purchaseOrders || []);
+  const [manufacturingOrders] = useState(mockDashboardData.manufacturingOrders || []);
+  const [activities] = useState(mockDashboardData.recentActivities || []);
 
-  // Store the selected order for detail modal view
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  // Derived calculations
+  const totalSalesValue = useMemo(() => {
+    return salesOrders.reduce((sum, order) => {
+       const amountStr = (order.amount || order.total || "0").toString().replace(/[^0-9.-]+/g,"");
+       return sum + (parseFloat(amountStr) || 0);
+    }, 0);
+  }, [salesOrders]);
 
-  // API states
-  const [salesOrders, setSalesOrders] = useState(mockDashboardData.salesOrders);
-  const [purchaseOrders, setPurchaseOrders] = useState(mockDashboardData.purchaseOrders);
-  const [manufacturingOrders, setManufacturingOrders] = useState(mockDashboardData.manufacturingOrders);
-  const [activities, setActivities] = useState(mockDashboardData.recentActivities);
-  const [loading, setLoading] = useState(true);
-
-  const API_BASE_URL = 'http://localhost:5000/api';
-
-  useEffect(() => {
-    const fetchAllData = async () => {
-      try {
-        const [salesRes, purchaseRes, mfgRes, auditRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/sales-orders`),
-          fetch(`${API_BASE_URL}/purchase-orders`),
-          fetch(`${API_BASE_URL}/manufacturing-orders`),
-          fetch(`${API_BASE_URL}/audit-logs`)
-        ]);
-
-        let salesData = [];
-        if (salesRes.ok) {
-          const rawSales = await salesRes.ok ? await salesRes.json() : [];
-          salesData = rawSales.map(b => {
-            const item = b.items[0] || {};
-            return {
-              id: b.id,
-              name: item.product || 'Unknown Product',
-              type: 'Custom Dining',
-              status: b.status,
-              amount: `$${(b.total || 0).toLocaleString()}`,
-              date: b.date,
-              owner: b.salesperson || 'Amit Sharma'
-            };
-          });
-        }
-
-        let purchaseData = [];
-        if (purchaseRes.ok) {
-          const rawPurchase = await purchaseRes.json();
-          purchaseData = rawPurchase.map(p => ({
-            id: p.id,
-            name: p.item || 'Raw Lumber',
-            type: 'Raw Materials',
-            status: p.status,
-            amount: `$${(p.qty * 10).toLocaleString()}`,
-            date: p.date,
-            owner: p.responsible || 'Ravi Patel'
-          }));
-        }
-
-        let mfgData = [];
-        if (mfgRes.ok) {
-          const rawMfg = await mfgRes.json();
-          mfgData = rawMfg.map(m => ({
-            id: m.id,
-            name: m.product || 'Door Frames',
-            type: 'Assembly Line',
-            status: m.status,
-            qty: `${m.qty || 0} ${m.units || 'Units'}`,
-            date: m.date,
-            owner: m.assignee || 'Amit Sharma'
-          }));
-        }
-
-        let activityData = [];
-        if (auditRes.ok) {
-          const rawAudit = await auditRes.json();
-          activityData = rawAudit.slice(0, 8).map(l => ({
-            id: `act-${l.id}`,
-            text: `${l.user || 'System'} ${l.action ? l.action.toLowerCase() : 'updated'} ${l.type || 'record'} ${l.record_id || ''}`,
-            time: l.datetime || 'Just now'
-          }));
-        }
-
-        setSalesOrders(salesData.length > 0 ? salesData : mockDashboardData.salesOrders);
-        setPurchaseOrders(purchaseData.length > 0 ? purchaseData : mockDashboardData.purchaseOrders);
-        setManufacturingOrders(mfgData.length > 0 ? mfgData : mockDashboardData.manufacturingOrders);
-        setActivities(activityData.length > 0 ? activityData : mockDashboardData.recentActivities);
-      } catch (err) {
-        console.warn("Failed to fetch dashboard data from backend. Falling back to mock data.", err);
-        setSalesOrders(mockDashboardData.salesOrders);
-        setPurchaseOrders(mockDashboardData.purchaseOrders);
-        setManufacturingOrders(mockDashboardData.manufacturingOrders);
-        setActivities(mockDashboardData.recentActivities);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAllData();
-  }, []);
-
-  const handlePillClick = (section, mode, status) => {
-    if (activeFilter && activeFilter.section === section && activeFilter.mode === mode && activeFilter.status === status) {
-      setActiveFilter(null);
-    } else {
-      setActiveFilter({ section, mode, status });
-    }
-  };
-
-  // Helper to filter data based on section, mode (All vs My), and status
-  const getFilteredOrders = (section) => {
-    let list = [];
-    if (section === 'sales') list = salesOrders;
-    else if (section === 'purchase') list = purchaseOrders;
-    else if (section === 'manufacturing') list = manufacturingOrders;
-
-    // Apply global search if present
-    if (searchVal) {
-      const q = searchVal.toLowerCase();
-      list = list.filter(item => 
-        item.id.toLowerCase().includes(q) || 
-        item.name.toLowerCase().includes(q) || 
-        item.type.toLowerCase().includes(q)
-      );
-    }
-
-    // Apply active status filter if this section is selected
-    if (activeFilter && activeFilter.section === section) {
-      list = list.filter(item => {
-        const matchesStatus = item.status.toLowerCase() === activeFilter.status.toLowerCase();
-        const matchesOwner = activeFilter.mode === 'All' || item.owner === currentUser.loginId;
-        return matchesStatus && matchesOwner;
-      });
-    } else {
-      return [];
-    }
-
-    return list;
-  };
-
-  // Helper to return the correct SVG icon for each status label
-  const getPillIcon = (status) => {
-    const s = status.toLowerCase();
-    
-    // Draft icon (Pencil / Document)
-    if (s.includes('draft')) {
-      return (
-        <svg className="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-      );
-    }
-    
-    // Confirmed icon (Double check / Approved Badge)
-    if (s.includes('confirmed')) {
-      return (
-        <svg className="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
-    }
-
-    // Partially Delivered / Received icon (Box packaging)
-    if (s.includes('partially')) {
-      return (
-        <svg className="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-        </svg>
-      );
-    }
-
-    // Delivered / Received / Done icon (Success mark)
-    if (s.includes('delivered') || s.includes('received') || s.includes('done')) {
-      return (
-        <svg className="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      );
-    }
-
-    // Late / Warning icon (Alert triangle)
-    if (s.includes('late')) {
-      return (
-        <svg className="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
-      );
-    }
-
-    // In Progress icon (Spinning gear)
-    if (s.includes('progress')) {
-      return (
-        <svg className="pill-icon spin-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        </svg>
-      );
-    }
-
-    // To Close icon (Lock pad)
-    if (s.includes('close')) {
-      return (
-        <svg className="pill-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-        </svg>
-      );
-    }
-
-    return null;
-  };
-
-  const getPillsForSection = (ordersList, statuses, mode) => {
-    return statuses.map(status => {
-      const count = ordersList.filter(o => {
-        const matchesStatus = o.status.toLowerCase() === status.toLowerCase();
-        const matchesOwner = mode === 'All' || o.owner === currentUser.loginId;
-        return matchesStatus && matchesOwner;
-      }).length;
-      return { count, label: status };
-    });
-  };
-
-  const salesStatuses = ['Draft', 'Confirmed', 'Partially Delivered', 'Delivered', 'Late'];
-  const purchaseStatuses = ['Draft', 'Confirmed', 'Partially Received', 'Received', 'Late'];
-  const manufacturingStatuses = ['Draft', 'Confirmed', 'In Progress', 'To Close', 'Done'];
-
-  const salesPills = {
-    All: getPillsForSection(salesOrders, salesStatuses, 'All'),
-    My: getPillsForSection(salesOrders, salesStatuses, 'My')
-  };
-
-  const purchasePills = {
-    All: getPillsForSection(purchaseOrders, purchaseStatuses, 'All'),
-    My: getPillsForSection(purchaseOrders, purchaseStatuses, 'My')
-  };
-
-  const manufacturingPills = {
-    All: getPillsForSection(manufacturingOrders, manufacturingStatuses, 'All'),
-    My: getPillsForSection(manufacturingOrders, manufacturingStatuses, 'My')
-  };
-
-  // Resolve activities fallback dynamically
-  const displayActivities = activities.length > 0 ? activities : mockDashboardData.recentActivities;
+  const pendingSales = salesOrders.filter(o => o.status !== 'Delivered' && o.status !== 'Done').length;
+  const pendingPurchases = purchaseOrders.filter(o => o.status !== 'Received' && o.status !== 'Done').length;
+  const inProgressMfg = manufacturingOrders.filter(o => o.status === 'In Progress').length;
+  
+  // Mock Inventory (Since it's missing in basic mockData)
+  const lowStockItems = [
+    { product: 'Teak Wood Logs', onHand: 12, min: 20, status: 'Critical' },
+    { product: 'Brass Handles', onHand: 45, min: 50, status: 'Warning' },
+    { product: 'Varnish 5L', onHand: 4, min: 10, status: 'Critical' }
+  ];
 
   return (
-    <div className="page-content animated fadeIn">
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '15px' }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px', 
-          padding: '6px 14px', 
-          borderRadius: '20px', 
-          background: loading ? 'rgba(207, 142, 109, 0.12)' : 'rgba(93, 112, 82, 0.12)', 
-          border: loading ? '1px solid rgba(207, 142, 109, 0.3)' : '1px solid rgba(93, 112, 82, 0.3)',
-          color: loading ? 'var(--primary)' : 'var(--success)',
-          fontSize: '13px',
-          fontWeight: '700',
-          transition: 'all 0.3s ease'
-        }}>
-          <span style={{ 
-            width: '8px', 
-            height: '8px', 
-            borderRadius: '50%', 
-            background: loading ? 'var(--primary)' : 'var(--success)',
-            display: 'inline-block',
-            animation: loading ? 'pulse 1.5s infinite' : 'none'
-          }}></span>
-          <style>{`
-            @keyframes pulse {
-              0% { opacity: 0.3; }
-              50% { opacity: 1; }
-              100% { opacity: 0.3; }
-            }
-          `}</style>
-          <span>{loading ? 'Connecting to ERP Engine...' : 'ERP Connected (Live)'}</span>
-        </div>
-      </div>
+    <div className="sf-container">
+      {/* SVG Definitions */}
+      <svg width="0" height="0">
+        <defs>
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="rgba(212, 175, 55, 0.5)" />
+            <stop offset="100%" stopColor="rgba(212, 175, 55, 0)" />
+          </linearGradient>
+        </defs>
+      </svg>
 
-      {/* 1. SALES ORDERS PANEL */}
-      <div className="card glass erp-dashboard-panel hub-red">
-        <div className="erp-panel-header">
-          <div style={{ width: '80px' }}></div>
-          <h3 className="erp-panel-title">Sale Orders</h3>
-          <button className="btn-view-all-link" onClick={() => onNavigate('sales-orders')}>
-            View All →
-          </button>
-        </div>
+      {/* --- DASHBOARD GRID --- */}
+      <div className="sf-main">
+        {/* Dashboard Grid Content */}
+        <div className="sf-dashboard-content">
+          
+          {/* ROW 1: KPI CARDS */}
+          <div className="sf-kpi-grid">
+             <div className="sf-kpi-card">
+               <div className="sf-kpi-header">
+                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                 Total Sales
+               </div>
+               <div className="sf-kpi-value">₹{(totalSalesValue / 100000).toFixed(1)}L</div>
+               <div className="sf-kpi-footer">
+                  <span className="sf-kpi-trend positive">+12.5%</span>
+                  <span className="sf-kpi-subtext">vs last month</span>
+               </div>
+             </div>
+             
+             <div className="sf-kpi-card">
+               <div className="sf-kpi-header">
+                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                 Sales Orders
+               </div>
+               <div className="sf-kpi-value">{salesOrders.length}</div>
+               <div className="sf-kpi-footer">
+                  <span className="sf-kpi-trend warning">{pendingSales} Pending</span>
+               </div>
+             </div>
 
-        <div className="erp-panel-body">
-          {/* All row */}
-          <div className="erp-filter-row">
-            <span className="erp-row-label">All</span>
-            <div className="erp-pills-container">
-              {salesPills.All.map(pill => {
-                const isActive = activeFilter?.section === 'sales' && activeFilter?.mode === 'All' && activeFilter?.status === pill.label;
-                return (
-                  <button
-                    key={`sales-all-${pill.label}`}
-                    className={`erp-status-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => handlePillClick('sales', 'All', pill.label)}
-                  >
-                    {getPillIcon(pill.label)}
-                    <span className="pill-count">{pill.count}</span>
-                    <span className="pill-label">{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+             <div className="sf-kpi-card">
+               <div className="sf-kpi-header">
+                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                 Purchase Orders
+               </div>
+               <div className="sf-kpi-value">{purchaseOrders.length}</div>
+               <div className="sf-kpi-footer">
+                  <span className="sf-kpi-trend warning">{pendingPurchases} Pending</span>
+               </div>
+             </div>
+
+             <div className="sf-kpi-card">
+               <div className="sf-kpi-header">
+                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /></svg>
+                 Manufacturing
+               </div>
+               <div className="sf-kpi-value">{manufacturingOrders.length}</div>
+               <div className="sf-kpi-footer">
+                  <span className="sf-kpi-trend info">{inProgressMfg} In Progress</span>
+               </div>
+             </div>
+
+             <div className="sf-kpi-card">
+               <div className="sf-kpi-header">
+                 <svg className="sf-kpi-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                 Low Stock
+               </div>
+               <div className="sf-kpi-value">{lowStockItems.length}</div>
+               <div className="sf-kpi-footer">
+                  <span className="sf-kpi-trend danger">Needs Attention</span>
+               </div>
+             </div>
           </div>
 
-          {/* My row */}
-          <div className="erp-filter-row" style={{ marginTop: '14px' }}>
-            <span className="erp-row-label">My</span>
-            <div className="erp-pills-container">
-              {salesPills.My.map(pill => {
-                const isActive = activeFilter?.section === 'sales' && activeFilter?.mode === 'My' && activeFilter?.status === pill.label;
-                return (
-                  <button
-                    key={`sales-my-${pill.label}`}
-                    className={`erp-status-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => handlePillClick('sales', 'My', pill.label)}
-                  >
-                    {getPillIcon(pill.label)}
-                    <span className="pill-count">{pill.count}</span>
-                    <span className="pill-label">{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* ROW 2: MAIN ANALYTICS */}
+          <div className="sf-analytics-row">
+             <div className="sf-panel">
+                <div className="sf-panel-header">
+                   <h2 className="sf-panel-title">Sales & Order Performance</h2>
+                   <select style={{ background: 'var(--sf-bg)', color: 'var(--sf-text-muted)', border: '1px solid var(--sf-panel-border)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                      <option>7 Days</option>
+                      <option>30 Days</option>
+                      <option>3 Months</option>
+                      <option>Year</option>
+                   </select>
+                </div>
+                
+                <div style={{ position: 'relative', height: '220px', marginTop: '10px' }}>
+                   {/* Horizontal grid lines */}
+                   <div style={{ position: 'absolute', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: '30px' }}>
+                      {[4,3,2,1,0].map(i => <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', width: '100%' }}></div>)}
+                   </div>
+                   
+                   <svg className="sf-chart-svg" viewBox="0 0 500 200" preserveAspectRatio="none">
+                      <path d="M 0 150 Q 50 160 100 120 T 200 130 T 250 80 T 300 100 T 400 60 T 500 90 L 500 200 L 0 200 Z" fill="url(#goldGrad)" />
+                      <path className="sf-line" d="M 0 150 Q 50 160 100 120 T 200 130 T 250 80 T 300 100 T 400 60 T 500 90" />
+                      <circle cx="400" cy="60" r="5" fill="var(--sf-gold)" />
+                   </svg>
+                   
+                   {/* Tooltip */}
+                   <div style={{ position: 'absolute', top: '20px', left: '350px', background: 'var(--sf-panel-bg)', border: '1px solid var(--sf-panel-border)', padding: '8px 12px', borderRadius: '6px', fontSize: '11px', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}>
+                      <div style={{ color: 'var(--sf-text-muted)', marginBottom: '4px' }}>Aug 15</div>
+                      <div style={{ color: '#fff', fontWeight: '600' }}>Sales: ₹2.4L</div>
+                   </div>
+                </div>
+             </div>
+
+             <div className="sf-panel">
+                <div className="sf-panel-header">
+                   <h2 className="sf-panel-title">Order Status</h2>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', position: 'relative' }}>
+                   <svg className="sf-donut-svg" viewBox="0 0 100 100">
+                      <circle className="sf-donut-bg" cx="50" cy="50" r="40" />
+                      <circle className="sf-donut-segment" cx="50" cy="50" r="40" stroke="var(--sf-gold)" strokeDasharray="250" strokeDashoffset="100" />
+                      <circle className="sf-donut-segment" cx="50" cy="50" r="40" stroke="var(--sf-info)" strokeDasharray="250" strokeDashoffset="180" />
+                      <circle className="sf-donut-segment" cx="50" cy="50" r="40" stroke="var(--sf-danger)" strokeDasharray="250" strokeDashoffset="230" />
+                   </svg>
+                   <div style={{ position: 'absolute', textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--sf-text-muted)' }}>Total Orders</div>
+                      <div style={{ fontSize: '24px', fontWeight: '700', color: '#fff' }}>{salesOrders.length}</div>
+                   </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-around', fontSize: '11px', color: 'var(--sf-text-muted)', marginTop: '10px' }}>
+                   <div style={{display: 'flex', alignItems: 'center', gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'var(--sf-gold)'}}></div>Delivered</div>
+                   <div style={{display: 'flex', alignItems: 'center', gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'var(--sf-info)'}}></div>Confirmed</div>
+                   <div style={{display: 'flex', alignItems: 'center', gap:'4px'}}><div style={{width:'8px',height:'8px',borderRadius:'50%',background:'var(--sf-danger)'}}></div>Late</div>
+                </div>
+             </div>
           </div>
 
-          {/* Expanded orders table */}
-          {activeFilter?.section === 'sales' && (
-            <div className="erp-orders-table-wrapper">
-              <div className="table-filter-indicator">
-                Showing {activeFilter.mode === 'My' ? 'My' : 'All'} Sales Orders with status: <strong>{activeFilter.status}</strong>
-              </div>
-              <div className="table-container-scroll">
-                <table className="erp-dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Furniture Item</th>
-                      <th>Category</th>
-                      <th>Release Date</th>
-                      <th>Amount</th>
-                      <th>Owner</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredOrders('sales').length > 0 ? (
-                      getFilteredOrders('sales').map(order => (
-                        <tr key={order.id}>
-                          <td className="order-id-cell">{order.id}</td>
-                          <td>{order.name}</td>
-                          <td><span className="badge category-badge">{order.type}</span></td>
-                          <td>{order.date}</td>
-                          <td style={{ fontWeight: '600' }}>{order.amount}</td>
-                          <td>{order.owner}</td>
-                          <td>
-                            <button className="btn btn-outline btn-small-table" onClick={() => setSelectedOrder({ ...order, section: 'sales' })}>
-                              Manage
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
+          {/* ROW 3: OPERATIONS */}
+          <div className="sf-ops-row">
+             <div className="sf-panel">
+                <h2 className="sf-panel-title" style={{marginBottom: '16px'}}>Inventory Health</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: 'var(--sf-text-muted)' }}>On Hand</span>
+                   <span style={{ color: '#fff', fontWeight: '500' }}>1,240</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: 'var(--sf-text-muted)' }}>Reserved</span>
+                   <span style={{ color: '#fff', fontWeight: '500' }}>420</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: 'var(--sf-text-muted)' }}>Free To Use</span>
+                   <span style={{ color: 'var(--sf-success)', fontWeight: '600' }}>820</span>
+                </div>
+                <div className="sf-progress-bar"><div className="sf-progress-fill success" style={{width: '66%'}}></div></div>
+             </div>
+
+             <div className="sf-panel">
+                <h2 className="sf-panel-title" style={{marginBottom: '16px'}}>Manufacturing Status</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: 'var(--sf-text-muted)' }}>In Progress</span>
+                   <span style={{ color: '#fff', fontWeight: '500' }}>{inProgressMfg}</span>
+                </div>
+                <div className="sf-progress-bar" style={{marginBottom: '12px'}}><div className="sf-progress-fill info" style={{width: '45%'}}></div></div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: 'var(--sf-text-muted)' }}>To Close</span>
+                   <span style={{ color: '#fff', fontWeight: '500' }}>2</span>
+                </div>
+                <div className="sf-progress-bar"><div className="sf-progress-fill warning" style={{width: '15%'}}></div></div>
+             </div>
+
+             <div className="sf-panel">
+                <h2 className="sf-panel-title" style={{marginBottom: '16px'}}>Procurement</h2>
+                <div style={{ fontSize: '12px', color: 'var(--sf-text-muted)', marginBottom: '12px' }}>Items requiring procurement:</div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: '#fff' }}>Teak Wood Logs</span>
+                   <span style={{ color: 'var(--sf-danger)', fontWeight: '500' }}>Shortage: 8</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13px' }}>
+                   <span style={{ color: '#fff' }}>Brass Handles</span>
+                   <span style={{ color: 'var(--sf-warning)', fontWeight: '500' }}>Shortage: 5</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                   <span style={{ color: '#fff' }}>Varnish 5L</span>
+                   <span style={{ color: 'var(--sf-danger)', fontWeight: '500' }}>Shortage: 6</span>
+                </div>
+             </div>
+          </div>
+
+          {/* ROW 4: DATA TABLE */}
+          <div className="sf-panel">
+             <div className="sf-panel-header">
+                <h2 className="sf-panel-title">Recent Sales Orders</h2>
+                <button className="sf-btn">View All</button>
+             </div>
+             <div className="sf-table-wrapper">
+                <table className="sf-table">
+                   <thead>
                       <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
-                          No sales orders found under this status.
-                        </td>
+                         <th>Order ID</th>
+                         <th>Product</th>
+                         <th>Customer</th>
+                         <th>Amount</th>
+                         <th>Created</th>
+                         <th>Status</th>
+                         <th>Action</th>
                       </tr>
-                    )}
-                  </tbody>
+                   </thead>
+                   <tbody>
+                      {salesOrders.slice(0, 5).map((order, i) => {
+                         const statusClass = order.status ? order.status.toLowerCase().replace(' ', '') : 'draft';
+                         return (
+                            <tr key={order.id || i}>
+                               <td style={{ fontWeight: '500', color: 'var(--sf-gold)' }}>{order.id}</td>
+                               <td>{order.name}</td>
+                               <td style={{ color: 'var(--sf-text-muted)' }}>{order.owner}</td>
+                               <td style={{ fontWeight: '600' }}>{order.amount || `$${order.total}`}</td>
+                               <td style={{ color: 'var(--sf-text-muted)' }}>{order.date}</td>
+                               <td><span className={`sf-badge ${statusClass}`}>{order.status}</span></td>
+                               <td><button className="sf-btn" style={{padding: '4px 8px', fontSize: '11px'}}>Edit</button></td>
+                            </tr>
+                         )
+                      })}
+                   </tbody>
                 </table>
-              </div>
-            </div>
-          )}
+             </div>
+          </div>
+
+          {/* ROW 5: INVENTORY + ACTIVITY */}
+          <div className="sf-analytics-row">
+             <div className="sf-panel">
+                <h2 className="sf-panel-title" style={{marginBottom: '16px'}}>Low Stock Items</h2>
+                <div className="sf-table-wrapper">
+                   <table className="sf-table">
+                      <thead>
+                         <tr>
+                            <th>Product</th>
+                            <th>On Hand</th>
+                            <th>Minimum</th>
+                            <th>Status</th>
+                         </tr>
+                      </thead>
+                      <tbody>
+                         {lowStockItems.map((item, i) => {
+                            const statusClass = item.status.toLowerCase();
+                            return (
+                               <tr key={i}>
+                                  <td>{item.product}</td>
+                                  <td style={{ fontWeight: '600' }}>{item.onHand}</td>
+                                  <td style={{ color: 'var(--sf-text-muted)' }}>{item.min}</td>
+                                  <td><span className={`sf-badge ${statusClass}`}>{item.status}</span></td>
+                               </tr>
+                            )
+                         })}
+                      </tbody>
+                   </table>
+                </div>
+             </div>
+
+             <div className="sf-panel">
+                <h2 className="sf-panel-title" style={{marginBottom: '20px'}}>Recent Activity</h2>
+                <div className="sf-activity-feed">
+                   {activities.slice(0, 4).map((act, i) => (
+                      <div className="sf-activity-item" key={act.id || i}>
+                         <div className="sf-act-icon">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                         </div>
+                         <div className="sf-act-content">
+                            <span className="sf-act-desc">{act.text}</span>
+                            <span className="sf-act-meta">{act.time}</span>
+                         </div>
+                      </div>
+                   ))}
+                </div>
+             </div>
+          </div>
+
         </div>
       </div>
-
-      {/* 2. PURCHASE ORDERS PANEL */}
-      <div className="card glass erp-dashboard-panel hub-indigo">
-        <div className="erp-panel-header">
-          <div style={{ width: '80px' }}></div>
-          <h3 className="erp-panel-title">Purchase Orders</h3>
-          <button className="btn-view-all-link" onClick={() => onNavigate('purchase-orders')}>
-            View All →
-          </button>
-        </div>
-
-        <div className="erp-panel-body">
-          {/* All row */}
-          <div className="erp-filter-row">
-            <span className="erp-row-label">All</span>
-            <div className="erp-pills-container">
-              {purchasePills.All.map(pill => {
-                const isActive = activeFilter?.section === 'purchase' && activeFilter?.mode === 'All' && activeFilter?.status === pill.label;
-                return (
-                  <button
-                    key={`purchase-all-${pill.label}`}
-                    className={`erp-status-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => handlePillClick('purchase', 'All', pill.label)}
-                  >
-                    {getPillIcon(pill.label)}
-                    <span className="pill-count">{pill.count}</span>
-                    <span className="pill-label">{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* My row */}
-          <div className="erp-filter-row" style={{ marginTop: '14px' }}>
-            <span className="erp-row-label">My</span>
-            <div className="erp-pills-container">
-              {purchasePills.My.map(pill => {
-                const isActive = activeFilter?.section === 'purchase' && activeFilter?.mode === 'My' && activeFilter?.status === pill.label;
-                return (
-                  <button
-                    key={`purchase-my-${pill.label}`}
-                    className={`erp-status-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => handlePillClick('purchase', 'My', pill.label)}
-                  >
-                    {getPillIcon(pill.label)}
-                    <span className="pill-count">{pill.count}</span>
-                    <span className="pill-label">{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Expanded orders table */}
-          {activeFilter?.section === 'purchase' && (
-            <div className="erp-orders-table-wrapper">
-              <div className="table-filter-indicator">
-                Showing {activeFilter.mode === 'My' ? 'My' : 'All'} Purchase Orders with status: <strong>{activeFilter.status}</strong>
-              </div>
-              <div className="table-container-scroll">
-                <table className="erp-dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Supply Item</th>
-                      <th>Category</th>
-                      <th>Order Date</th>
-                      <th>Amount</th>
-                      <th>Requestor</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredOrders('purchase').length > 0 ? (
-                      getFilteredOrders('purchase').map(order => (
-                        <tr key={order.id}>
-                          <td className="order-id-cell">{order.id}</td>
-                          <td>{order.name}</td>
-                          <td><span className="badge category-badge">{order.type}</span></td>
-                          <td>{order.date}</td>
-                          <td style={{ fontWeight: '600' }}>{order.amount}</td>
-                          <td>{order.owner}</td>
-                          <td>
-                            <button className="btn btn-outline btn-small-table" onClick={() => setSelectedOrder({ ...order, section: 'purchase' })}>
-                              Manage
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
-                          No purchase orders found under this status.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 3. MANUFACTURING ORDERS PANEL */}
-      <div className="card glass erp-dashboard-panel hub-mint">
-        <div className="erp-panel-header">
-          <div style={{ width: '80px' }}></div>
-          <h3 className="erp-panel-title">Manufacturing Orders</h3>
-          <button className="btn-view-all-link" onClick={() => onNavigate('manufacturing-orders')}>
-            View All →
-          </button>
-        </div>
-
-        <div className="erp-panel-body">
-          {/* All row */}
-          <div className="erp-filter-row">
-            <span className="erp-row-label">All</span>
-            <div className="erp-pills-container">
-              {manufacturingPills.All.map(pill => {
-                const isActive = activeFilter?.section === 'manufacturing' && activeFilter?.mode === 'All' && activeFilter?.status === pill.label;
-                return (
-                  <button
-                    key={`mfg-all-${pill.label}`}
-                    className={`erp-status-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => handlePillClick('manufacturing', 'All', pill.label)}
-                  >
-                    {getPillIcon(pill.label)}
-                    <span className="pill-count">{pill.count}</span>
-                    <span className="pill-label">{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* My row */}
-          <div className="erp-filter-row" style={{ marginTop: '14px' }}>
-            <span className="erp-row-label">My</span>
-            <div className="erp-pills-container">
-              {manufacturingPills.My.map(pill => {
-                const isActive = activeFilter?.section === 'manufacturing' && activeFilter?.mode === 'My' && activeFilter?.status === pill.label;
-                return (
-                  <button
-                    key={`mfg-my-${pill.label}`}
-                    className={`erp-status-pill ${isActive ? 'active' : ''}`}
-                    onClick={() => handlePillClick('manufacturing', 'My', pill.label)}
-                  >
-                    {getPillIcon(pill.label)}
-                    <span className="pill-count">{pill.count}</span>
-                    <span className="pill-label">{pill.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Expanded orders table */}
-          {activeFilter?.section === 'manufacturing' && (
-            <div className="erp-orders-table-wrapper">
-              <div className="table-filter-indicator">
-                Showing {activeFilter.mode === 'My' ? 'My' : 'All'} Manufacturing Orders with status: <strong>{activeFilter.status}</strong>
-              </div>
-              <div className="table-container-scroll">
-                <table className="erp-dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Operation</th>
-                      <th>Work Center</th>
-                      <th>Scheduled Date</th>
-                      <th>Batch Qty</th>
-                      <th>Supervisor</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getFilteredOrders('manufacturing').length > 0 ? (
-                      getFilteredOrders('manufacturing').map(order => (
-                        <tr key={order.id}>
-                          <td className="order-id-cell">{order.id}</td>
-                          <td>{order.name}</td>
-                          <td><span className="badge category-badge">{order.type}</span></td>
-                          <td>{order.date}</td>
-                          <td style={{ fontWeight: '600' }}>{order.qty}</td>
-                          <td>{order.owner}</td>
-                          <td>
-                            <button className="btn btn-outline btn-small-table" onClick={() => setSelectedOrder({ ...order, section: 'manufacturing' })}>
-                              Manage
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
-                          No manufacturing orders found under this status.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 4. RECENT ACTIVITY LOGS PANEL */}
-      <div className="card glass erp-dashboard-panel hub-blue">
-        <h3 className="erp-panel-title" style={{ textAlign: 'left', marginBottom: '18px' }}>Recent Activity</h3>
-        <div className="activity-list-container">
-          {displayActivities.map((act) => (
-            <div className="activity-item-row" key={act.id}>
-              <div className="activity-dot-indicator"></div>
-              <div className="activity-detail-meta">
-                <span className="activity-text">{act.text}</span>
-                <span className="activity-time-stamp">{act.time}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* DETAIL MODAL OVERLAY */}
-      {selectedOrder && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(62, 47, 39, 0.45)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div className="card glass" style={{
-            maxWidth: '500px',
-            width: '90%',
-            padding: '28px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
-            position: 'relative'
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderBottom: '1px solid var(--card-border)',
-              paddingBottom: '14px',
-              marginBottom: '20px'
-            }}>
-              <h3 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                {selectedOrder.section === 'sales' ? 'Sales Order Details' : 
-                 selectedOrder.section === 'purchase' ? 'Purchase Order Details' : 
-                 'Manufacturing Order Details'}
-              </h3>
-              <button 
-                onClick={() => setSelectedOrder(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  lineHeight: '1'
-                }}
-              >
-                &times;
-              </button>
-            </div>
-
-            {/* Body Info Grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              textAlign: 'left',
-              marginBottom: '24px'
-            }}>
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  {selectedOrder.section === 'sales' ? 'Order ID' : 
-                   selectedOrder.section === 'purchase' ? 'Reference' : 
-                   'Manufacturing ID'}
-                </span>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--primary)', fontFamily: 'monospace', marginTop: '2px' }}>
-                  {selectedOrder.id}
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  {selectedOrder.section === 'sales' ? 'Furniture Item' : 
-                   selectedOrder.section === 'purchase' ? 'Supply Item' : 
-                   'Operation'}
-                </span>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {selectedOrder.name}
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  {selectedOrder.section === 'manufacturing' ? 'Work Center' : 'Category'}
-                </span>
-                <div style={{ marginTop: '2px' }}>
-                  <span className="badge category-badge">{selectedOrder.type}</span>
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  {selectedOrder.section === 'sales' ? 'Release Date' : 
-                   selectedOrder.section === 'purchase' ? 'Order Date' : 
-                   'Scheduled Date'}
-                </span>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {selectedOrder.date}
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  {selectedOrder.section === 'manufacturing' ? 'Batch Qty' : 'Amount'}
-                </span>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {selectedOrder.section === 'manufacturing' ? selectedOrder.qty : selectedOrder.amount}
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  {selectedOrder.section === 'sales' ? 'Owner' : 
-                   selectedOrder.section === 'purchase' ? 'Requestor' : 
-                   'Supervisor'}
-                </span>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {selectedOrder.owner}
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Status
-                </span>
-                <div style={{ marginTop: '4px' }}>
-                  <span className="badge" style={{
-                    padding: '4px 10px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    background: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Received' || selectedOrder.status === 'Done' ? '#d1fae5' : 
-                                selectedOrder.status === 'Draft' ? '#f3f4f6' : 
-                                selectedOrder.status === 'Late' ? '#fee2e2' : '#fef3c7',
-                    color: selectedOrder.status === 'Delivered' || selectedOrder.status === 'Received' || selectedOrder.status === 'Done' ? '#065f46' : 
-                           selectedOrder.status === 'Draft' ? '#374151' : 
-                           selectedOrder.status === 'Late' ? '#991b1b' : '#92400e'
-                  }}>
-                    {selectedOrder.status}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Buttons */}
-            <div style={{
-              borderTop: '1px solid var(--card-border)',
-              paddingTop: '18px',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px'
-            }}>
-              <button 
-                className="btn btn-outline" 
-                onClick={() => setSelectedOrder(null)}
-                style={{ marginTop: 0 }}
-              >
-                Close
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={() => {
-                  const targetView = selectedOrder.section === 'sales' ? 'sales-orders' : 
-                                     selectedOrder.section === 'purchase' ? 'purchase-orders' : 
-                                     'manufacturing-orders';
-                  onNavigate(targetView);
-                  setSelectedOrder(null);
-                }}
-                style={{ marginTop: 0, width: 'auto', padding: '0 20px' }}
-              >
-                Manage in Module
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
