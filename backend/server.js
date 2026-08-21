@@ -9,6 +9,12 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Import Routes
+const userRoutes = require('./routes/userRoutes');
+const salesRoutes = require('./routes/salesRoutes');
+app.use('/api', userRoutes);
+app.use('/api', salesRoutes);
+
 // Initialize Database Tables on Startup
 async function initDb() {
   try {
@@ -315,6 +321,41 @@ async function initDb() {
         );
       }
     }
+
+    // 7. Users Table (Authentication & Management)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        login_id VARCHAR(50) PRIMARY KEY,
+        name VARCHAR(255),
+        email VARCHAR(255),
+        role VARCHAR(50),
+        position VARCHAR(100),
+        address TEXT,
+        mobile VARCHAR(50),
+        password VARCHAR(255),
+        photo TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const usersCount = await pool.query("SELECT COUNT(*) FROM users");
+    if (parseInt(usersCount.rows[0].count) === 0) {
+      console.log("Seeding users...");
+      const initialUsers = [
+        ['admin001', 'System Administrator', 'admin@shivfurniture.com', 'System Administrator', 'Admin', 'Mumbai', '+919999999999', 'admin123'],
+        ['mahesh_g', 'Mahesh Gupta', 'mahesh@shivfurniture.com', 'User', 'Sales Manager', 'Colaba, Mumbai, 400001', '+918000000000', 'password123'],
+        ['nisarg_v', 'Nisarg Verma', 'nisarg@gmail.com', 'User', 'Purchase Head', 'Andheri, Mumbai, 400053', '+919000000001', 'password123'],
+        ['sweta_k', 'Sweta Kediva', 'sweta.kediva@kprcas.ac.in', 'User', 'Warehouse Staff', 'Bandra, Mumbai, 400050', '+919000000002', 'password123'],
+        ['dinesh_p', 'Dinesh Patel', 'dinesh@gmail.com', 'User', 'Account Manager', 'Dadar, Mumbai, 400014', '+919000000003', 'password123'],
+        ['trisha_k', 'Trisha K.', 'trisha@gmail.com', 'User', 'HR Executive', 'Borivali, Mumbai, 400092', '+919000000004', 'password123']
+      ];
+      for (const u of initialUsers) {
+        await pool.query(
+          "INSERT INTO users (login_id, name, email, role, position, address, mobile, password, photo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '')",
+          u
+        );
+      }
+    }
   } catch (error) {
     console.error("Database initialization failed:", error.message);
   }
@@ -327,50 +368,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date() });
 });
 
-// --- Sales Orders Routes ---
-app.get("/api/sales-orders", async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT * FROM sales_orders ORDER BY id DESC");
-    const formatted = rows.map(r => ({
-      ...r,
-      items: JSON.parse(r.items || "[]"),
-      total: parseFloat(r.total || 0)
-    }));
-    res.json(formatted);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/sales-orders", async (req, res) => {
-  try {
-    const { id, date, customer, status, salesperson, items, total, owner } = req.body;
-    await pool.query(
-      `INSERT INTO sales_orders (id, date, customer, status, salesperson, items, total, owner) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [id, date, customer, status, salesperson, JSON.stringify(items || []), total || 0, owner || ""]
-    );
-    res.status(201).json({ message: "Sales order created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/sales-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { date, customer, status, salesperson, items, total, owner } = req.body;
-    await pool.query(
-      `UPDATE sales_orders 
-       SET date = $1, customer = $2, status = $3, salesperson = $4, items = $5, total = $6, owner = $7 
-       WHERE id = $8`,
-      [date, customer, status, salesperson, JSON.stringify(items || []), total || 0, owner || "", id]
-    );
-    res.json({ message: "Sales order updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Sales Orders Routes have been moved to routes/salesRoutes.js
 
 // --- Purchase Orders Routes ---
 app.get("/api/purchase-orders", async (req, res) => {
@@ -407,6 +405,16 @@ app.put("/api/purchase-orders/:id", async (req, res) => {
       [date, vendor, address, responsible, item, qty || 0, received || 0, status, owner || "", id]
     );
     res.json({ message: "Purchase order updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/purchase-orders/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM purchase_orders WHERE id = $1", [id]);
+    res.json({ message: "Purchase order deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -457,6 +465,16 @@ app.put("/api/manufacturing-orders/:id", async (req, res) => {
   }
 });
 
+app.delete("/api/manufacturing-orders/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM manufacturing_orders WHERE id = $1", [id]);
+    res.json({ message: "Manufacturing order deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Audit Logs Routes ---
 app.get("/api/audit-logs", async (req, res) => {
   try {
@@ -476,6 +494,16 @@ app.post("/api/audit-logs", async (req, res) => {
       [datetime, user, module, type, record_id, action, field || "", old_val || "", new_val || ""]
     );
     res.status(201).json({ message: "Audit log created successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/audit-logs/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM audit_logs WHERE id = $1", [id]);
+    res.json({ message: "Audit log deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -528,6 +556,16 @@ app.put("/api/products/:id", async (req, res) => {
   }
 });
 
+app.delete("/api/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM products WHERE id = $1", [id]);
+    res.json({ message: "Product deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- BOM Templates Routes ---
 app.get("/api/boms", async (req, res) => {
   try {
@@ -572,6 +610,49 @@ app.put("/api/boms/:id", async (req, res) => {
       [reference, product, qty || 0, unit || "Units", JSON.stringify(components || []), JSON.stringify(workOrders || []), id]
     );
     res.json({ message: "BOM template updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/boms/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM boms WHERE id = $1", [id]);
+    res.json({ message: "BOM template deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Users Management & Authentication Routes have been moved to routes/userRoutes.js
+
+// --- Dashboard Analytics Aggregation Route ---
+app.get("/api/dashboard/analytics", async (req, res) => {
+  try {
+    // Run multiple queries in parallel for fast dashboard loading
+    const [salesResult, purchaseResult, mfgResult, productsResult, recentAudits] = await Promise.all([
+      pool.query(`
+        SELECT COUNT(*) as total_orders, COALESCE(SUM(total), 0) as total_revenue, COUNT(CASE WHEN status = 'Delivered' THEN 1 END) as completed_orders FROM sales_orders
+      `),
+      pool.query(`
+        SELECT COUNT(*) as total_pos, COALESCE(SUM(qty), 0) as items_ordered, COALESCE(SUM(received), 0) as items_received FROM purchase_orders
+      `),
+      pool.query(`
+        SELECT COUNT(*) as active_mfg, COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed_mfg FROM manufacturing_orders
+      `),
+      pool.query(`SELECT COUNT(*) as total_products FROM products`),
+      pool.query(`SELECT * FROM audit_logs ORDER BY id DESC LIMIT 10`)
+    ]);
+
+    res.json({
+      sales: salesResult.rows[0],
+      purchases: purchaseResult.rows[0],
+      manufacturing: mfgResult.rows[0],
+      inventory: productsResult.rows[0],
+      recentActivity: recentAudits.rows,
+      timestamp: new Date()
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

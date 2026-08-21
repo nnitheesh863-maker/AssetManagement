@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import logoImg from '../assets/logo.png';
 
-const PRESEEDED_ADMIN = {
-  loginId: 'admin123',
-  password: 'AdminPassword@123'
-};
+const API_BASE_URL = 'http://localhost:5000/api';
 
 function Login({ users, onLoginSuccess, onNavigateToRegister }) {
   // loginType: 'user' | 'admin' | 'forgot'
@@ -78,92 +75,80 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     }
   };
 
-  // Helper: get the latest users list from localStorage (includes admins created via AdminDashboard)
-  const getFreshUsers = () => {
+  const handleUserLogin = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
     try {
-      const stored = localStorage.getItem('assetflow_users');
-      return stored ? JSON.parse(stored) : users;
-    } catch { return users; }
+      const res = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginId, password })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const user = data.user;
+        const isSystemAdmin = user.role === 'System Administrator' || user.role === 'ADMIN';
+        setSuccessMessage(isSystemAdmin ? 'Welcome, Administrator!' : 'Logged in successfully!');
+        triggerExplosion(isSystemAdmin);
+        
+        setTimeout(() => {
+          onLoginSuccess({
+            loginId: user.login_id,
+            email: user.email,
+            role: user.role || 'User',
+            name: user.name,
+            photo: user.photo
+          });
+        }, 1800);
+      } else {
+        setErrorMessage(data.message || 'Invalid Login Id or Password');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setErrorMessage('Server unreachable. Please try again later.');
+    }
   };
 
-  const handleUserLogin = (e) => {
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Allow admin credentials on user tab for seamless UX
-    if (loginId === PRESEEDED_ADMIN.loginId && password === PRESEEDED_ADMIN.password) {
-      setSuccessMessage('Welcome, Administrator!');
-      triggerExplosion(true);
-      setTimeout(() => {
-        onLoginSuccess({
-          loginId: PRESEEDED_ADMIN.loginId,
-          email: 'admin@assetflow.com',
-          role: 'System Administrator'
-        });
-      }, 1800);
-      return;
-    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginId, password })
+      });
+      const data = await res.json();
 
-    const allUsers = getFreshUsers();
-    const matchedUser = allUsers.find(
-      (u) => (u.loginId.toLowerCase() === loginId.trim().toLowerCase() || u.email.toLowerCase() === loginId.trim().toLowerCase()) && u.password === password
-    );
-
-    if (matchedUser) {
-      const isSystemAdmin = matchedUser.role === 'System Administrator' || matchedUser.role === 'ADMIN';
-      setSuccessMessage(isSystemAdmin ? 'Welcome, Administrator!' : 'Logged in successfully!');
-      triggerExplosion(isSystemAdmin);
-      setTimeout(() => {
-        onLoginSuccess({
-          loginId: matchedUser.loginId,
-          email: matchedUser.email,
-          role: matchedUser.role || 'User'
-        });
-      }, 1800);
-    } else {
-      setErrorMessage('Invalid Login Id or Password');
-    }
-  };
-
-  const handleAdminLogin = (e) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-
-    // Check hardcoded admin first
-    if (loginId === PRESEEDED_ADMIN.loginId && password === PRESEEDED_ADMIN.password) {
-      setSuccessMessage('Welcome, Administrator!');
-      triggerExplosion(true);
-      setTimeout(() => {
-        onLoginSuccess({
-          loginId: PRESEEDED_ADMIN.loginId,
-          email: 'admin@assetflow.com',
-          role: 'System Administrator'
-        });
-      }, 1800);
-      return;
-    }
-
-    // Check created admin accounts from localStorage (fresh read)
-    const allUsers = getFreshUsers();
-    const matchedAdmin = allUsers.find(
-      (u) => (u.loginId.toLowerCase() === loginId.trim().toLowerCase() || u.email.toLowerCase() === loginId.trim().toLowerCase()) && u.password === password &&
-             (u.role === 'System Administrator' || u.role === 'ADMIN')
-    );
-
-    if (matchedAdmin) {
-      setSuccessMessage('Welcome, Administrator!');
-      triggerExplosion(true);
-      setTimeout(() => {
-        onLoginSuccess({
-          loginId: matchedAdmin.loginId,
-          email: matchedAdmin.email,
-          role: 'System Administrator'
-        });
-      }, 1800);
-    } else {
-      setErrorMessage('Invalid Admin Login Id or Password');
+      if (data.success) {
+        const user = data.user;
+        if (user.role === 'System Administrator' || user.role === 'ADMIN') {
+          setSuccessMessage('Welcome, Administrator!');
+          triggerExplosion(true);
+          
+          setTimeout(() => {
+            onLoginSuccess({
+              loginId: user.login_id,
+              email: user.email,
+              role: 'System Administrator',
+              name: user.name,
+              photo: user.photo
+            });
+          }, 1800);
+        } else {
+          setErrorMessage('Access Denied: You are not an Administrator.');
+        }
+      } else {
+        setErrorMessage(data.message || 'Invalid Admin Login Id or Password');
+      }
+    } catch (err) {
+      console.error('Admin login error:', err);
+      setErrorMessage('Server unreachable. Please try again later.');
     }
   };
 
@@ -172,10 +157,9 @@ function Login({ users, onLoginSuccess, onNavigateToRegister }) {
     setResetError('');
     setResetSuccess('');
 
-    const foundUser = users.find((u) => u.loginId === forgotLoginId);
-    const isAdmin = PRESEEDED_ADMIN.loginId === forgotLoginId;
+    const isAdmin = loginId === 'admin001'; // simplified for forgot password mock
 
-    if (foundUser || isAdmin) {
+    if (isAdmin || forgotLoginId) {
       setResetSuccess(`Password reset instructions sent to ${isAdmin ? 'admin@assetflow.com' : foundUser.email}!`);
       setForgotLoginId('');
     } else {
