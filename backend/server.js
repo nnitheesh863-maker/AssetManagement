@@ -13,8 +13,21 @@ app.use(express.json());
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
 const salesRoutes = require('./routes/salesRoutes');
+const purchaseRoutes = require('./routes/purchaseRoutes');
+const manufacturingRoutes = require('./routes/manufacturingRoutes');
+const productRoutes = require('./routes/productRoutes');
+const bomRoutes = require('./routes/bomRoutes');
 app.use('/api', userRoutes);
 app.use('/api', salesRoutes);
+app.use('/api', purchaseRoutes);
+app.use('/api', manufacturingRoutes);
+app.use('/api', productRoutes);
+app.use('/api', bomRoutes);
+
+const auditRoutes = require('./routes/auditRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+app.use('/api', auditRoutes);
+app.use('/api', dashboardRoutes);
 
 // Initialize Database on Startup
 async function initDb() {
@@ -160,246 +173,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date() });
 });
 
-// --- Purchase Orders Routes ---
-app.get("/api/purchase-orders", async (req, res) => {
-  try {
-    const data = await PurchaseOrder.find().sort({ id: -1 });
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/purchase-orders", async (req, res) => {
-  try {
-    const { id, date, vendor, address, responsible, item, qty, received, status, owner } = req.body;
-    await PurchaseOrder.create({ id, date, vendor, address, responsible, item, qty: qty || 0, received: received || 0, status, owner: owner || "" });
-    res.status(201).json({ message: "Purchase order created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/purchase-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await PurchaseOrder.findOneAndUpdate({ id }, req.body);
-    res.json({ message: "Purchase order updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/purchase-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await PurchaseOrder.findOneAndDelete({ id });
-    res.json({ message: "Purchase order deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Manufacturing Orders Routes ---
-app.get("/api/manufacturing-orders", async (req, res) => {
-  try {
-    const data = await ManufacturingOrder.find().sort({ id: -1 });
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/manufacturing-orders", async (req, res) => {
-  try {
-    await ManufacturingOrder.create(req.body);
-    res.status(201).json({ message: "Manufacturing order created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/manufacturing-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await ManufacturingOrder.findOneAndUpdate({ id }, req.body);
-    res.json({ message: "Manufacturing order updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/manufacturing-orders/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await ManufacturingOrder.findOneAndDelete({ id });
-    res.json({ message: "Manufacturing order deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Audit Logs Routes ---
-app.get("/api/audit-logs", async (req, res) => {
-  try {
-    const data = await AuditLog.find().sort({ _id: -1 });
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/audit-logs", async (req, res) => {
-  try {
-    await AuditLog.create(req.body);
-    res.status(201).json({ message: "Audit log created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/audit-logs/:id", async (req, res) => {
-  try {
-    // Assuming id is passed but in MongoDB it's _id or we're not filtering by string ID
-    await AuditLog.findByIdAndDelete(req.params.id);
-    res.json({ message: "Audit log deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Products Routes ---
-app.get("/api/products", async (req, res) => {
-  try {
-    const data = await Product.find().sort({ id: -1 });
-    // Transform to match old field names
-    const formatted = data.map(r => ({
-      id: r.id,
-      name: r.name,
-      category: r.category,
-      salesPrice: r.sales_price,
-      costPrice: r.cost_price
-    }));
-    res.json(formatted);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/products", async (req, res) => {
-  try {
-    const { id, name, category, salesPrice, costPrice } = req.body;
-    await Product.create({ id, name, category, sales_price: salesPrice, cost_price: costPrice });
-    res.status(201).json({ message: "Product created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, category, salesPrice, costPrice } = req.body;
-    await Product.findOneAndUpdate({ id }, { name, category, sales_price: salesPrice, cost_price: costPrice });
-    res.json({ message: "Product updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Product.findOneAndDelete({ id });
-    res.json({ message: "Product deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- BOM Templates Routes ---
-app.get("/api/boms", async (req, res) => {
-  try {
-    const data = await Bom.find().sort({ id: -1 });
-    const formatted = data.map(r => ({
-      id: r.id,
-      reference: r.reference,
-      product: r.product,
-      qty: r.qty,
-      unit: r.unit,
-      components: r.components,
-      workOrders: r.work_orders
-    }));
-    res.json(formatted);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/boms", async (req, res) => {
-  try {
-    const { id, reference, product, qty, unit, components, workOrders } = req.body;
-    await Bom.create({ id, reference, product, qty, unit, components, work_orders: workOrders });
-    res.status(201).json({ message: "BOM template created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/boms/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reference, product, qty, unit, components, workOrders } = req.body;
-    await Bom.findOneAndUpdate({ id }, { reference, product, qty, unit, components, work_orders: workOrders });
-    res.json({ message: "BOM template updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/boms/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await Bom.findOneAndDelete({ id });
-    res.json({ message: "BOM template deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- Dashboard Analytics Aggregation Route ---
-app.get("/api/dashboard/analytics", async (req, res) => {
-  try {
-    const totalOrders = await SalesOrder.countDocuments();
-    const salesAggregation = await SalesOrder.aggregate([{ $group: { _id: null, total_revenue: { $sum: "$total" } } }]);
-    const totalRevenue = salesAggregation[0] ? salesAggregation[0].total_revenue : 0;
-    const completedOrders = await SalesOrder.countDocuments({ status: "Delivered" });
-
-    const totalPos = await PurchaseOrder.countDocuments();
-    const purchaseAggregation = await PurchaseOrder.aggregate([
-      { $group: { _id: null, items_ordered: { $sum: "$qty" }, items_received: { $sum: "$received" } } }
-    ]);
-    const itemsOrdered = purchaseAggregation[0] ? purchaseAggregation[0].items_ordered : 0;
-    const itemsReceived = purchaseAggregation[0] ? purchaseAggregation[0].items_received : 0;
-
-    const activeMfg = await ManufacturingOrder.countDocuments();
-    const completedMfg = await ManufacturingOrder.countDocuments({ status: "Completed" });
-
-    const totalProducts = await Product.countDocuments();
-    const recentAudits = await AuditLog.find().sort({ _id: -1 }).limit(10);
-
-    res.json({
-      sales: { total_orders: totalOrders, total_revenue: totalRevenue, completed_orders: completedOrders },
-      purchases: { total_pos: totalPos, items_ordered: itemsOrdered, items_received: itemsReceived },
-      manufacturing: { active_mfg: activeMfg, completed_mfg: completedMfg },
-      inventory: { total_products: totalProducts },
-      recentActivity: recentAudits,
-      timestamp: new Date()
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Routes have been moved to the routes/ directory and imported above.
 
 // Start Server & Init DB
 app.listen(PORT, async () => {
