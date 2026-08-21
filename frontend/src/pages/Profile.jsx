@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
+const API_BASE_URL = 'http://localhost:5000/api';
+
 function Profile({ currentUser, onProfileUpdate }) {
-  // Local storage key specific to this logged in user
-  const storageKey = `assetflow_profile_${currentUser.loginId}`;
 
   // Form states
   const [name, setName] = useState('');
@@ -18,41 +18,34 @@ function Profile({ currentUser, onProfileUpdate }) {
   // Read-only fields
   const email = currentUser.email;
 
-  // Position is set ONLY by System Administrator — read from users database
-  const getPosition = () => {
-    try {
-      const stored = localStorage.getItem('assetflow_users');
-      if (stored) {
-        const users = JSON.parse(stored);
-        const found = users.find(u => u?.loginId?.toLowerCase() === currentUser.loginId.toLowerCase());
-        if (found && found.position) return found.position;
-      }
-    } catch {}
-    return currentUser.role === 'System Administrator' ? 'System Administrator' : 'Not Assigned';
-  };
-  const position = getPosition();
+  // Position is set ONLY by System Administrator
+  const position = currentUser.position || (currentUser.role === 'System Administrator' ? 'System Administrator' : 'Not Assigned');
 
   // Load profile data on mount
   useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
+    const fetchUser = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        setName(parsed.name || '');
-        setAddress(parsed.address || '');
-        setMobile(parsed.mobile || '');
-        setPhoto(parsed.photo || '');
-      } catch (e) {
-        console.error('Error parsing profile data', e);
+        const res = await fetch(`${API_BASE_URL}/users`);
+        const data = await res.json();
+        const me = data.find(u => u.login_id === currentUser.loginId);
+        if (me) {
+          setName(me.name || '');
+          setAddress(me.address || '');
+          setMobile(me.mobile || '');
+          setPhoto(me.photo || '');
+        } else {
+          // Preseed defaults if not found (edge case)
+          setName(currentUser.role === 'System Administrator' ? 'Admin User' : 'User');
+          setAddress('Colaba, Mumbai, 400001');
+          setMobile('+918000000000');
+          setPhoto('');
+        }
+      } catch (err) {
+        console.error('Error fetching user profile:', err);
       }
-    } else {
-      // Preseed default values matching mockup
-      setName(currentUser.role === 'System Administrator' ? 'Admin User' : 'Mahesh Gupta');
-      setAddress('Colaba, Mumbai, 400001');
-      setMobile('+918000000000');
-      setPhoto('');
-    }
-  }, [storageKey, currentUser]);
+    };
+    fetchUser();
+  }, [currentUser]);
 
   // Handle image upload and base64 conversion
   const handlePhotoClick = () => {
@@ -97,40 +90,48 @@ function Profile({ currentUser, onProfileUpdate }) {
     }
   };
 
-  // Save changes to localStorage database
-  const handleSave = (e) => {
+  // Save changes to backend database
+  const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     setSuccessMessage('');
     setErrorMessage('');
 
-    const profileData = {
-      name,
-      address,
-      mobile,
-      photo
-    };
+    try {
+      const res = await fetch(`${API_BASE_URL}/users/${currentUser.loginId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          address,
+          mobile,
+          photo,
+          email,
+          role: currentUser.role,
+          position
+        })
+      });
 
-    setTimeout(() => {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(profileData));
-        setIsSaving(false);
+      if (res.ok) {
         setSuccessMessage('Profile details updated successfully!');
         if (onProfileUpdate) {
           onProfileUpdate(photo);
         }
-        // Clear toast after 3 seconds
         setTimeout(() => setSuccessMessage(''), 3000);
-      } catch (err) {
-        console.error('Error saving profile data', err);
-        setIsSaving(false);
-        if (err.name === 'QuotaExceededError' || err.message.includes('quota')) {
-          setErrorMessage('Failed to save: Profile photo is too large. Please upload a smaller image.');
-        } else {
-          setErrorMessage('Failed to save profile changes. Please try again.');
-        }
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update');
       }
-    }, 600);
+    } catch (err) {
+      console.error('Error saving profile data', err);
+      if (err.message && err.message.includes('too large')) {
+        setErrorMessage('Failed to save: Profile photo is too large.');
+      } else {
+        setErrorMessage('Failed to save profile changes. Please try again.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
