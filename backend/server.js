@@ -14,10 +14,14 @@ const userRoutes = require('./routes/userRoutes');
 const salesRoutes = require('./routes/salesRoutes');
 const purchaseRoutes = require('./routes/purchaseRoutes');
 const manufacturingRoutes = require('./routes/manufacturingRoutes');
+const productRoutes = require('./routes/productRoutes');
+const bomRoutes = require('./routes/bomRoutes');
 app.use('/api', userRoutes);
 app.use('/api', salesRoutes);
 app.use('/api', purchaseRoutes);
 app.use('/api', manufacturingRoutes);
+app.use('/api', productRoutes);
+app.use('/api', bomRoutes);
 
 // Initialize Database Tables on Startup
 async function initDb() {
@@ -412,121 +416,8 @@ app.delete("/api/audit-logs/:id", async (req, res) => {
   }
 });
 
-// --- Products Routes ---
-app.get("/api/products", async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT * FROM products ORDER BY id DESC");
-    const formatted = rows.map(r => ({
-      id: r.id,
-      name: r.name,
-      category: r.category,
-      salesPrice: parseFloat(r.sales_price || 0),
-      costPrice: parseFloat(r.cost_price || 0)
-    }));
-    res.json(formatted);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/products", async (req, res) => {
-  try {
-    const { id, name, category, salesPrice, costPrice } = req.body;
-    await pool.query(
-      `INSERT INTO products (id, name, category, sales_price, cost_price) 
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, name, category, salesPrice || 0, costPrice || 0]
-    );
-    res.status(201).json({ message: "Product created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, category, salesPrice, costPrice } = req.body;
-    await pool.query(
-      `UPDATE products 
-       SET name = $1, category = $2, sales_price = $3, cost_price = $4 
-       WHERE id = $5`,
-      [name, category, salesPrice || 0, costPrice || 0, id]
-    );
-    res.json({ message: "Product updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await pool.query("DELETE FROM products WHERE id = $1", [id]);
-    res.json({ message: "Product deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --- BOM Templates Routes ---
-app.get("/api/boms", async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT * FROM boms ORDER BY id DESC");
-    const formatted = rows.map(r => ({
-      id: r.id,
-      reference: r.reference,
-      product: r.product,
-      qty: parseFloat(r.qty || 0),
-      unit: r.unit || "Units",
-      components: JSON.parse(r.components || "[]"),
-      workOrders: JSON.parse(r.work_orders || "[]")
-    }));
-    res.json(formatted);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/boms", async (req, res) => {
-  try {
-    const { id, reference, product, qty, unit, components, workOrders } = req.body;
-    await pool.query(
-      `INSERT INTO boms (id, reference, product, qty, unit, components, work_orders) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, reference, product, qty || 0, unit || "Units", JSON.stringify(components || []), JSON.stringify(workOrders || [])]
-    );
-    res.status(201).json({ message: "BOM template created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/boms/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { reference, product, qty, unit, components, workOrders } = req.body;
-    await pool.query(
-      `UPDATE boms 
-       SET reference = $1, product = $2, qty = $3, unit = $4, components = $5, work_orders = $6 
-       WHERE id = $7`,
-      [reference, product, qty || 0, unit || "Units", JSON.stringify(components || []), JSON.stringify(workOrders || []), id]
-    );
-    res.json({ message: "BOM template updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/boms/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    await pool.query("DELETE FROM boms WHERE id = $1", [id]);
-    res.json({ message: "BOM template deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Products Routes have been moved to routes/productRoutes.js
+// BOM Templates Routes have been moved to routes/bomRoutes.js
 
 // Users Management & Authentication Routes have been moved to routes/userRoutes.js
 
