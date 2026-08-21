@@ -9,6 +9,10 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Import Routes
+const userRoutes = require('./routes/userRoutes');
+app.use('/api', userRoutes);
+
 // Initialize Database Tables on Startup
 async function initDb() {
   try {
@@ -672,78 +676,7 @@ app.delete("/api/boms/:id", async (req, res) => {
   }
 });
 
-// --- Users Management & Authentication Routes ---
-app.get("/api/users", async (req, res) => {
-  try {
-    const { rows } = await pool.query("SELECT login_id, name, email, role, position, address, mobile, photo, created_at FROM users ORDER BY created_at DESC");
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/users", async (req, res) => {
-  try {
-    const { loginId, name, email, role, position, address, mobile, password, photo } = req.body;
-    await pool.query(
-      `INSERT INTO users (login_id, name, email, role, position, address, mobile, password, photo) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [loginId, name, email, role, position, address, mobile, password, photo || ""]
-    );
-    res.status(201).json({ message: "User created successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put("/api/users/:loginId", async (req, res) => {
-  try {
-    const { loginId } = req.params;
-    const { name, email, role, position, address, mobile, password, photo } = req.body;
-    
-    if (password) {
-      await pool.query(
-        `UPDATE users SET name = $1, email = $2, role = $3, position = $4, address = $5, mobile = $6, password = $7, photo = $8 WHERE login_id = $9`,
-        [name, email, role, position, address, mobile, password, photo || "", loginId]
-      );
-    } else {
-      await pool.query(
-        `UPDATE users SET name = $1, email = $2, role = $3, position = $4, address = $5, mobile = $6, photo = $7 WHERE login_id = $8`,
-        [name, email, role, position, address, mobile, photo || "", loginId]
-      );
-    }
-    res.json({ message: "User updated successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete("/api/users/:loginId", async (req, res) => {
-  try {
-    const { loginId } = req.params;
-    await pool.query("DELETE FROM users WHERE login_id = $1", [loginId]);
-    res.json({ message: "User deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post("/api/login", async (req, res) => {
-  try {
-    const { loginId, password } = req.body;
-    const { rows } = await pool.query("SELECT * FROM users WHERE login_id = $1 AND password = $2", [loginId, password]);
-    
-    if (rows.length > 0) {
-      const user = rows[0];
-      delete user.password; // Don't send password back to client
-      res.json({ success: true, user });
-    } else {
-      res.status(401).json({ success: false, message: "Invalid credentials" });
-    }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Users Management & Authentication Routes have been moved to routes/userRoutes.js
 
 // --- Dashboard Analytics Aggregation Route ---
 app.get("/api/dashboard/analytics", async (req, res) => {
