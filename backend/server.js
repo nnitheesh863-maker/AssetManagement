@@ -372,6 +372,16 @@ app.put("/api/sales-orders/:id", async (req, res) => {
   }
 });
 
+app.delete("/api/sales-orders/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query("DELETE FROM sales_orders WHERE id = $1", [id]);
+    res.json({ message: "Sales order deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- Purchase Orders Routes ---
 app.get("/api/purchase-orders", async (req, res) => {
   try {
